@@ -391,7 +391,7 @@ document.getElementById("inboxClear").onclick = () => { store.set("ap:inbox", []
 function syncReminders(ask) {
   if (!bridge || !bridge.setReminder) return;
   try {
-    if (settings.reminders && ask) bridge.requestNotifications();
+    if (ask) bridge.requestNotifications(); // и для напоминаний, и для новостей об обновлениях
     const last = [...stats.days].sort().pop() || "";
     bridge.setReminder(!!settings.reminders, last, streak());
   } catch {}
@@ -735,7 +735,7 @@ async function checkUpdate(manual) {
   if (!v.code) { if (manual) toast("ℹ️", "Это версия для браузера", "Обновления есть только в приложении"); return; }
   if (!manual) {
     const last = store.get("ap:updChecked", 0);
-    if (Date.now() - last < 6 * 3600e3) return;
+    if (Date.now() - last < 10 * 60e3) { const b = store.get("ap:updBuild", 0); if (b > v.code) showUpdate(b); return; }
   }
   store.set("ap:updChecked", Date.now());
   try {
@@ -744,7 +744,19 @@ async function checkUpdate(manual) {
     const rel = await r.json();
     const m = /сборка\s+(\d+)/i.exec(rel.name || "");
     const latest = m ? +m[1] : 0;
-    if (latest > v.code) showUpdate(latest);
+    store.set("ap:updBuild", latest);
+    if (latest > v.code) {
+      showUpdate(latest);
+      // Один раз на каждую новую сборку: запись в 🔔 и всплывающее сообщение
+      if (store.get("ap:updNotified", 0) < latest) {
+        store.set("ap:updNotified", latest);
+        const inbox = store.get("ap:inbox", []);
+        inbox.unshift({ game: null, icon: "🚀", title: "Вышло обновление!", text: `Сборка ${latest} уже готова. Нажми «Скачать» вверху`, t: Date.now(), read: false });
+        store.set("ap:inbox", inbox.slice(0, 100));
+        renderBell(true);
+        toast("🚀", "Вышло обновление!", `Сборка ${latest} уже готова`);
+      }
+    }
     else if (manual) toast("✅", "У тебя последняя версия", `Версия ${v.name}`);
   } catch {
     if (manual) toast("📡", "Не получилось проверить", "Нужен интернет");

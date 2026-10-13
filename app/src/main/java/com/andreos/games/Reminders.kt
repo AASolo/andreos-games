@@ -106,6 +106,11 @@ object Reminders {
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) Reminders.schedule(context) else Reminders.show(context)
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            Reminders.schedule(context)
+            Updates.schedule(context)
+        } else {
+            Reminders.show(context)
+        }
     }
 }

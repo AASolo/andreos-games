@@ -57,6 +57,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        Updates.schedule(applicationContext)
 
         // Заставка держится, пока не загрузится меню (но не дольше 3 секунд),
         // а потом иконка улетает вперёд и растворяется.
