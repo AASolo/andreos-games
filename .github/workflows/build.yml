@@ -27,7 +27,16 @@ jobs:
         run: ./scripts/fetch_games.sh
 
       - name: Собрать APK
-        run: ./gradlew --no-daemon assembleRelease
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
+
+      - name: Показать ошибки сборки
+        if: failure()
+        run: |
+          grep -E "error|ERROR|FAILED|What went wrong|e: " build.log | head -30 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
 
       - name: Переименовать APK
         run: cp app/build/outputs/apk/release/app-release.apk AndreosPlay.apk
