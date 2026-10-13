@@ -275,7 +275,9 @@ class MainActivity : Activity() {
         if (hasFocus) hideSystemBars()
     }
 
+    // Фоновая музыка меню замолкает, когда приложение свёрнуто
     override fun onPause() {
+        webView.evaluateJavascript("typeof ambient !== 'undefined' && ambient.stop(true)", null)
         webView.onPause()
         super.onPause()
     }
@@ -283,6 +285,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         webView.onResume()
+        webView.evaluateJavascript("typeof ambient !== 'undefined' && !busy && ambient.start()", null)
     }
 
     @Deprecated("Deprecated in Java")

@@ -30,7 +30,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const settings = Object.assign({ haptics: true, sounds: true, motion: true }, store.get("ap:settings", {}));
+const settings = Object.assign({ haptics: true, sounds: true, music: true, motion: true }, store.get("ap:settings", {}));
 
 // Статистика: { time: {id: мс}, plays: {id: n}, days: ["2026-10-13", ...], night, early }
 function loadStats() {
@@ -136,6 +136,107 @@ function sound(kind = "tap") {
 function openExternal(u) {
   try { bridge ? bridge.openUrl(u) : window.open(u, "_blank"); } catch { location.href = u; }
 }
+
+
+/* ================= Фоновая музыка ================= */
+
+// Тихий эмбиент, который генерируется прямо в приложении: мягкие аккорды,
+// медленный фильтр и лёгкие «капли» сверху. Файлов нет, работает офлайн.
+const ambient = (() => {
+  let ctx, master, timer, step = 0, on = false;
+  const CHORDS = [
+    [48, 55, 64, 71],  // Cmaj7
+    [45, 52, 60, 67],  // Am7
+    [41, 48, 57, 64],  // Fmaj7
+    [43, 50, 59, 62],  // G6
+  ];
+  const BAR = 8; // секунд на аккорд
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  function init() {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    ctx = actx;
+    master = ctx.createGain();
+    master.gain.value = 0;
+    // Простая «комната»: задержка с обратной связью и мягким фильтром
+    const delay = ctx.createDelay(1), fb = ctx.createGain(), damp = ctx.createBiquadFilter();
+    delay.delayTime.value = .38; fb.gain.value = .42; damp.type = "lowpass"; damp.frequency.value = 1800;
+    master.connect(ctx.destination);
+    master.connect(delay); delay.connect(damp); damp.connect(fb); fb.connect(delay); damp.connect(ctx.destination);
+  }
+
+  function pad(notes, t) {
+    const f = ctx.createBiquadFilter();
+    f.type = "lowpass"; f.Q.value = .7;
+    f.frequency.setValueAtTime(500, t);
+    f.frequency.linearRampToValueAtTime(1100, t + BAR * .5);
+    f.frequency.linearRampToValueAtTime(600, t + BAR + 2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.linearRampToValueAtTime(.18, t + 2.5);
+    g.gain.linearRampToValueAtTime(.12, t + BAR);
+    g.gain.linearRampToValueAtTime(.0001, t + BAR + 3);
+    f.connect(g).connect(master);
+    for (const n of notes) for (const det of [-6, 6]) {
+      const o = ctx.createOscillator();
+      o.type = "triangle"; o.frequency.value = hz(n); o.detune.value = det;
+      o.connect(f); o.start(t); o.stop(t + BAR + 3.2);
+    }
+  }
+
+  function drop(n, t) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = hz(n);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(.05, t + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, t + 2.4);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 2.5);
+  }
+
+  function schedule() {
+    const t = ctx.currentTime + .1;
+    const chord = CHORDS[step % CHORDS.length];
+    pad(chord, t);
+    // Пара случайных нот из аккорда октавой выше
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) drop(chord[Math.floor(Math.random() * chord.length)] + 24, t + 1 + Math.random() * (BAR - 2));
+    step++;
+  }
+
+  return {
+    start() {
+      if (!settings.music) return;
+      if (on) { try { ctx.resume(); } catch {} return; }
+      try {
+        if (!ctx) init();
+        ctx.resume();
+        on = true;
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.setTargetAtTime(.55, ctx.currentTime, 1.2);
+        schedule();
+        timer = setInterval(schedule, BAR * 1000);
+      } catch {}
+    },
+    stop(fast) {
+      if (!on) return;
+      on = false;
+      clearInterval(timer);
+      try { master.gain.setTargetAtTime(0, ctx.currentTime, fast ? .08 : .5); } catch {}
+    },
+    get playing() { return on; },
+  };
+})();
+
+// Браузер может не дать включить звук до первого касания: тогда стартуем по нему
+function armMusic() {
+  ambient.start();
+  const kick = () => { ambient.start(); removeEventListener("pointerdown", kick); };
+  addEventListener("pointerdown", kick);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) ambient.stop(true);
+  else if (!busy) ambient.start();
+});
 
 /* ================= Учёт сессий ================= */
 
@@ -305,6 +406,7 @@ let busy = false;
 function launch(g, coverImg) {
   if (busy) return; busy = true;
   haptic(12); sound("tap");
+  ambient.stop();
   openSession(g);
 
   const reduce = !settings.motion || matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -388,6 +490,7 @@ function bindSettings() {
       settings[el.dataset.setting] = el.checked;
       store.set("ap:settings", settings);
       applySettings();
+      if (el.dataset.setting === "music") el.checked ? ambient.start() : ambient.stop();
       haptic(); sound("tap");
     };
   });
@@ -536,6 +639,7 @@ function boot() {
   go("games", true);
   requestAnimationFrame(moveGlow);
   checkAwards();
+  armMusic();
   setTimeout(() => checkUpdate(false), 1500);
 
   // Запуск с ярлыка на иконке приложения: ?play=<id>
@@ -555,6 +659,7 @@ addEventListener("pageshow", e => {
   document.body.classList.remove("leaving");
   stats = loadStats(); recent = store.get("ap:recent", []);
   closeSession(); renderAll(); checkAwards();
+  ambient.start();
 });
 
 boot();
