@@ -34,7 +34,12 @@ const settings = Object.assign({ haptics: true, sounds: true, music: true, motio
 
 // Статистика: { time: {id: мс}, plays: {id: n}, days: ["2026-10-13", ...], night, early }
 function loadStats() {
-  return Object.assign({ time: {}, plays: {}, days: [], night: false, early: false }, store.get("ap:stats", {}));
+  return Object.assign({
+    time: {}, plays: {}, days: [], night: false, early: false,
+    dayPlays: {}, dayGames: {}, longest: 0, tabs: [], musicMs: 0,
+    lunch: false, weekend: false, newyear: false, comeback: false,
+    magic: false, shared: false, shortcut: false,
+  }, store.get("ap:stats", {}));
 }
 let stats = loadStats();
 let recent = store.get("ap:recent", []);
@@ -77,34 +82,94 @@ function plural(n, one, few, many) {
 
 /* ================= Достижения ================= */
 
-const awards = [
-  { id: "first", icon: "🎮", title: "Первый шаг", text: "Запусти любую игру", goal: 1, val: () => totalPlays() },
-  { id: "all", icon: "🗺️", title: "Исследователь", text: "Попробуй все игры", goal: games.length, val: () => games.filter(g => stats.plays[g.id]).length },
-  { id: "fan", icon: "💜", title: "Фанат", text: "Запусти одну игру 10 раз", goal: 10, val: () => Math.max(0, ...Object.values(stats.plays)) },
-  { id: "hour", icon: "⏱️", title: "Марафон", text: "Проведи в играх 1 час", goal: 60, val: () => Math.floor(totalTime() / 60000) },
-  { id: "s3", icon: "🔥", title: "В ритме", text: "Играй 3 дня подряд", goal: 3, val: () => bestStreak() },
-  { id: "s7", icon: "⚡", title: "Неделя силы", text: "Играй 7 дней подряд", goal: 7, val: () => bestStreak() },
-  { id: "owl", icon: "🦉", title: "Ночная сова", text: "Сыграй после полуночи", goal: 1, val: () => +stats.night },
-  { id: "bird", icon: "🐦", title: "Ранняя пташка", text: "Сыграй до 7 утра", goal: 1, val: () => +stats.early },
-  { id: "love", icon: "❤️", title: "Любимчик", text: "Добавь игру в избранное", goal: 1, val: () => favs.size },
+const MIN = 60000, HOUR = 3600e3;
+const playsOf = id => stats.plays[id] || 0;
+const minsOf = id => Math.floor((stats.time[id] || 0) / MIN);
+const maxDayPlays = () => Math.max(0, ...Object.values(stats.dayPlays));
+const maxDayGames = () => Math.max(0, ...Object.values(stats.dayGames).map(l => l.length));
+
+// tier: 1 бронза, 2 серебро, 3 золото. secret: название скрыто, пока не получено.
+const awardGroups = [
+  ["start", "Первые шаги"], ["games", "По играм"], ["plays", "Запуски"], ["time", "Время в играх"],
+  ["streak", "Серии дней"], ["moments", "Особые моменты"], ["secret", "Секретные"],
 ];
-const isGot = a => a.val() >= a.goal;
+const awards = [
+  { g: "start", id: "first", icon: "🎮", title: "Первый шаг", text: "Запусти любую игру", goal: 1, tier: 1, val: () => totalPlays() },
+  { g: "start", id: "all", icon: "🗺️", title: "Исследователь", text: "Попробуй все игры", goal: games.length, tier: 2, val: () => games.filter(g => playsOf(g.id)).length },
+  { g: "start", id: "love", icon: "❤️", title: "Любимчик", text: "Добавь игру в избранное", goal: 1, tier: 1, val: () => favs.size },
+  { g: "start", id: "loveall", icon: "💞", title: "Люблю их все", text: "Добавь в избранное все игры", goal: games.length, tier: 2, val: () => favs.size },
+  { g: "start", id: "tabs", icon: "🧭", title: "Любопытный", text: "Загляни во все вкладки приложения", goal: 3, tier: 1, val: () => stats.tabs.length },
+
+  { g: "games", id: "fish5", icon: "🐠", title: "Друг рыбки", text: "Запусти «Дорогу в океан» 5 раз", goal: 5, tier: 1, val: () => playsOf("doroga-v-okean") },
+  { g: "games", id: "fish30", icon: "🌊", title: "Океанолог", text: "Проведи в «Дороге в океан» 30 минут", goal: 30, tier: 2, val: () => minsOf("doroga-v-okean") },
+  { g: "games", id: "burger5", icon: "🍔", title: "Повар-строитель", text: "Запусти «Бутербашню» 5 раз", goal: 5, tier: 1, val: () => playsOf("ButerBashnya-1.0") },
+  { g: "games", id: "burger30", icon: "🏗️", title: "Небоскрёб", text: "Проведи в «Бутербашне» 30 минут", goal: 30, tier: 2, val: () => minsOf("ButerBashnya-1.0") },
+  { g: "games", id: "kimchi5", icon: "🥬", title: "Помощник Глеба", text: "Запусти «Кимчи-кафе» 5 раз", goal: 5, tier: 1, val: () => playsOf("kimchi-gleba") },
+  { g: "games", id: "kimchi30", icon: "🌶️", title: "Шеф кимчи", text: "Проведи в «Кимчи-кафе» 30 минут", goal: 30, tier: 2, val: () => minsOf("kimchi-gleba") },
+  { g: "games", id: "hack5", icon: "💻", title: "Скрипт-кидди", text: "Запусти HackQuest 5 раз", goal: 5, tier: 1, val: () => playsOf("HackQuest-3.0") },
+  { g: "games", id: "hack30", icon: "🕶️", title: "Настоящий хакер", text: "Проведи в HackQuest 30 минут", goal: 30, tier: 2, val: () => minsOf("HackQuest-3.0") },
+  { g: "games", id: "fan", icon: "💜", title: "Фанат", text: "Запусти одну игру 10 раз", goal: 10, tier: 2, val: () => Math.max(0, ...Object.values(stats.plays)) },
+  { g: "games", id: "allround", icon: "🎲", title: "Универсал", text: "Проведи по 10 минут в каждой игре", goal: games.length, tier: 3, val: () => games.filter(g => minsOf(g.id) >= 10).length },
+
+  { g: "plays", id: "p10", icon: "▶️", title: "Разогрев", text: "Сделай 10 запусков", goal: 10, tier: 1, val: () => totalPlays() },
+  { g: "plays", id: "p50", icon: "🚀", title: "Завсегдатай", text: "Сделай 50 запусков", goal: 50, tier: 2, val: () => totalPlays() },
+  { g: "plays", id: "p100", icon: "💯", title: "Сотня", text: "Сделай 100 запусков", goal: 100, tier: 3, val: () => totalPlays() },
+  { g: "plays", id: "day3", icon: "🎯", title: "Три в одном", text: "Сыграй в 3 разные игры за один день", goal: 3, tier: 1, val: () => maxDayGames() },
+  { g: "plays", id: "day10", icon: "🔁", title: "Не оторваться", text: "Сделай 10 запусков за один день", goal: 10, tier: 2, val: () => maxDayPlays() },
+
+  { g: "time", id: "t15", icon: "⏱️", title: "Первые минуты", text: "Проведи в играх 15 минут", goal: 15, tier: 1, val: () => Math.floor(totalTime() / MIN) },
+  { g: "time", id: "hour", icon: "🕐", title: "Марафон", text: "Проведи в играх 1 час", goal: 60, tier: 1, val: () => Math.floor(totalTime() / MIN) },
+  { g: "time", id: "t5h", icon: "⌛", title: "Увлечённый", text: "Проведи в играх 5 часов", goal: 5, tier: 2, val: () => Math.floor(totalTime() / HOUR) },
+  { g: "time", id: "t24h", icon: "🏆", title: "Легенда", text: "Проведи в играх 24 часа", goal: 24, tier: 3, val: () => Math.floor(totalTime() / HOUR) },
+  { g: "time", id: "deep", icon: "🧘", title: "Погружение", text: "Играй 30 минут без перерыва", goal: 30, tier: 2, val: () => Math.floor(stats.longest / MIN) },
+  { g: "time", id: "deep2", icon: "🛸", title: "Потерял счёт времени", text: "Играй 2 часа без перерыва", goal: 120, tier: 3, val: () => Math.floor(stats.longest / MIN) },
+
+  { g: "streak", id: "s3", icon: "🔥", title: "В ритме", text: "Играй 3 дня подряд", goal: 3, tier: 1, val: () => bestStreak() },
+  { g: "streak", id: "s7", icon: "⚡", title: "Неделя силы", text: "Играй 7 дней подряд", goal: 7, tier: 2, val: () => bestStreak() },
+  { g: "streak", id: "s14", icon: "💎", title: "Две недели огня", text: "Играй 14 дней подряд", goal: 14, tier: 2, val: () => bestStreak() },
+  { g: "streak", id: "s30", icon: "👑", title: "Король серий", text: "Играй 30 дней подряд", goal: 30, tier: 3, val: () => bestStreak() },
+  { g: "streak", id: "d10", icon: "📅", title: "Постоянный гость", text: "Заходи поиграть в 10 разных дней", goal: 10, tier: 1, val: () => new Set(stats.days).size },
+  { g: "streak", id: "d50", icon: "🗓️", title: "Старожил", text: "Заходи поиграть в 50 разных дней", goal: 50, tier: 3, val: () => new Set(stats.days).size },
+
+  { g: "moments", id: "owl", icon: "🦉", title: "Ночная сова", text: "Сыграй после полуночи", goal: 1, tier: 1, val: () => +stats.night },
+  { g: "moments", id: "bird", icon: "🐦", title: "Ранняя пташка", text: "Сыграй до 7 утра", goal: 1, tier: 1, val: () => +stats.early },
+  { g: "moments", id: "lunch", icon: "🍜", title: "Обеденный перерыв", text: "Сыграй с 12 до 14 часов", goal: 1, tier: 1, val: () => +stats.lunch },
+  { g: "moments", id: "weekend", icon: "🛋️", title: "Выходной", text: "Сыграй в субботу или воскресенье", goal: 1, tier: 1, val: () => +stats.weekend },
+  { g: "moments", id: "music", icon: "🎵", title: "Меломан", text: "Послушай музыку в меню 10 минут", goal: 10, tier: 1, val: () => Math.floor(stats.musicMs / MIN) },
+
+  { g: "secret", id: "magic", icon: "🪄", title: "Фокусник", text: "Нажми на логотип 7 раз подряд", goal: 1, tier: 2, secret: true, val: () => +stats.magic },
+  { g: "secret", id: "share", icon: "💌", title: "Душа компании", text: "Поделись приложением с другом", goal: 1, tier: 1, secret: true, val: () => +stats.shared },
+  { g: "secret", id: "quick", icon: "⚡", title: "Быстрый старт", text: "Запусти игру ярлыком с иконки приложения", goal: 1, tier: 2, secret: true, val: () => +stats.shortcut },
+  { g: "secret", id: "comeback", icon: "🦋", title: "Возвращение", text: "Вернись поиграть после недели перерыва", goal: 1, tier: 2, secret: true, val: () => +stats.comeback },
+  { g: "secret", id: "newyear", icon: "🎄", title: "Новогоднее чудо", text: "Сыграй 31 декабря или 1 января", goal: 1, tier: 3, secret: true, val: () => +stats.newyear },
+  { g: "secret", id: "collector", icon: "🌟", title: "Коллекционер наград", text: "Получи 30 достижений", goal: 30, tier: 3, secret: true, val: () => awards.filter(a => a.id !== "collector" && isGot(a)).length },
+];
+
+// Однажды полученное достижение остаётся навсегда (даже если убрать игру из избранного)
+let gotSet = new Set(store.get("ap:awards", []));
+const isGot = a => gotSet.has(a.id) || a.val() >= a.goal;
 
 // Выдаёт новые достижения с тостом и конфетти
 function checkAwards() {
-  const seen = new Set(store.get("ap:awards", []));
-  const fresh = awards.filter(a => isGot(a) && !seen.has(a.id));
+  let fresh = [];
+  // два прохода: «Коллекционер» зависит от остальных
+  for (let pass = 0; pass < 2; pass++) {
+    const now = awards.filter(a => !gotSet.has(a.id) && a.val() >= a.goal);
+    now.forEach(a => gotSet.add(a.id));
+    fresh = fresh.concat(now);
+  }
   if (!fresh.length) return;
-  fresh.forEach(a => seen.add(a.id));
-  store.set("ap:awards", [...seen]);
+  store.set("ap:awards", [...gotSet]);
   store.set("ap:awardsNew", true);
   document.getElementById("awardsDot").hidden = false;
-  fresh.forEach((a, i) => setTimeout(() => {
-    toast(a.icon, "Новое достижение!", a.title);
+  const shown = fresh.slice(0, 3);
+  shown.forEach((a, i) => setTimeout(() => {
+    toast(a.icon, a.secret ? "Секретное достижение!" : "Новое достижение!", a.title);
     confetti();
     haptic([20, 60, 30]);
     sound("win");
   }, 700 + i * 1600));
+  if (fresh.length > 3) setTimeout(() => toast("🏅", `И ещё ${fresh.length - 3} ${plural(fresh.length - 3, "достижение", "достижения", "достижений")}`, "Загляни во вкладку «Награды»"), 700 + 3 * 1600);
 }
 
 /* ================= Отклик: вибрация и звук ================= */
@@ -247,19 +312,40 @@ function closeSession() {
   store.del("ap:session");
   const ms = Math.min(Math.max(Date.now() - s.t, 0), 3 * 3600e3);
   stats.time[s.id] = (stats.time[s.id] || 0) + ms;
+  stats.longest = Math.max(stats.longest, ms);
   store.set("ap:stats", stats);
 }
 function openSession(g) {
   const now = new Date();
+  const today = dayKey(now), h = now.getHours();
   stats.plays[g.id] = (stats.plays[g.id] || 0) + 1;
-  if (!stats.days.includes(dayKey(now))) stats.days.push(dayKey(now));
+  if (!stats.days.includes(today)) {
+    const last = [...stats.days].sort().pop();
+    if (last && (new Date(today + "T12:00:00") - new Date(last + "T12:00:00")) / 864e5 >= 7) stats.comeback = true;
+    stats.days.push(today);
+  }
   stats.days = stats.days.slice(-400);
-  if (now.getHours() < 4) stats.night = true;
-  if (now.getHours() >= 4 && now.getHours() < 7) stats.early = true;
+  stats.dayPlays[today] = (stats.dayPlays[today] || 0) + 1;
+  stats.dayGames[today] = [...new Set([...(stats.dayGames[today] || []), g.id])];
+  // храним счётчики только за последние 60 дней
+  for (const k of Object.keys(stats.dayPlays)) if (k < dayKey(new Date(Date.now() - 60 * 864e5))) { delete stats.dayPlays[k]; delete stats.dayGames[k]; }
+  if (h < 4) stats.night = true;
+  if (h >= 4 && h < 7) stats.early = true;
+  if (h >= 12 && h < 14) stats.lunch = true;
+  if (now.getDay() === 0 || now.getDay() === 6) stats.weekend = true;
+  if ((now.getMonth() === 11 && now.getDate() === 31) || (now.getMonth() === 0 && now.getDate() === 1)) stats.newyear = true;
   store.set("ap:stats", stats);
   store.set("ap:session", { id: g.id, t: Date.now() });
   recent = [g.id, ...recent.filter(x => x !== g.id)].slice(0, games.length);
   store.set("ap:recent", recent);
+}
+
+// Отмечает разовое событие для достижения и сразу проверяет награды
+function mark(flag) {
+  if (stats[flag]) return;
+  stats[flag] = true;
+  store.set("ap:stats", stats);
+  checkAwards();
 }
 
 /* ================= Шапка ================= */
@@ -447,17 +533,40 @@ function renderAwards() {
 
   const box = document.getElementById("awards");
   box.innerHTML = "";
-  [...awards].sort((a, b) => isGot(b) - isGot(a)).forEach((a, i) => {
-    const v = Math.min(a.val(), a.goal);
+  let i = 0;
+  const card = a => {
+    const got = isGot(a), hidden = a.secret && !got;
+    const v = got ? a.goal : Math.min(a.val(), a.goal);
     const el = document.createElement("div");
-    el.className = "award" + (isGot(a) ? " got" : "");
-    el.style.setProperty("--i", i);
-    el.innerHTML = `<div class="medal">${a.icon}</div>
-      <div class="t"><b>${a.title}</b><small>${a.text}${a.goal > 1 ? ` · ${v}/${a.goal}` : ""}</small>
-      <div class="prog"><i></i></div></div>`;
-    box.appendChild(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => { el.querySelector(".prog i").style.width = `${(v / a.goal) * 100}%`; }));
-  });
+    el.className = `award tier${a.tier}` + (got ? " got" : "") + (hidden ? " secret" : "");
+    el.style.setProperty("--i", i++);
+    el.innerHTML = `<div class="medal">${hidden ? "🔒" : a.icon}</div>
+      <div class="t"><b></b><small></small><div class="prog"><i></i></div></div>`;
+    el.querySelector("b").textContent = hidden ? "Секретное достижение" : a.title;
+    el.querySelector("small").textContent = hidden ? "Узнаешь, когда получишь" : a.text + (a.goal > 1 && !got ? ` · ${v}/${a.goal}` : "");
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.querySelector(".prog i").style.width = `${hidden ? 0 : (v / a.goal) * 100}%`; }));
+    return el;
+  };
+  const section = (title, list, extra = "") => {
+    if (!list.length) return;
+    const h = document.createElement("div");
+    h.className = "award-group";
+    h.innerHTML = `<span></span><em>${extra}</em>`;
+    h.querySelector("span").textContent = title;
+    box.appendChild(h);
+    const grid = document.createElement("div");
+    grid.className = "awards-grid";
+    list.forEach(a => grid.appendChild(card(a)));
+    box.appendChild(grid);
+  };
+  // Ближайшие: три неполученных с самым большим прогрессом
+  const near = awards.filter(a => !isGot(a) && !a.secret && a.val() > 0)
+    .sort((a, b) => b.val() / b.goal - a.val() / a.goal).slice(0, 3);
+  section("🎯 Почти получено", near);
+  for (const [g, title] of awardGroups) {
+    const list = awards.filter(a => a.g === g).sort((a, b) => isGot(b) - isGot(a) || a.tier - b.tier);
+    section(title, list, `${list.filter(isGot).length}/${list.length}`);
+  }
 
   const max = Math.max(1, ...games.map(g => stats.time[g.id] || 0));
   const bars = document.getElementById("bars");
@@ -497,6 +606,7 @@ function bindSettings() {
   document.querySelectorAll("[data-open]").forEach(el => { el.onclick = () => { haptic(); openExternal(el.dataset.open); }; });
   document.getElementById("shareBtn").onclick = () => {
     haptic();
+    mark("shared");
     const text = `Залетай в Andreos Play: все игры Andreos в одном приложении 🎮\n${RELEASE_PAGE}`;
     try {
       if (bridge) bridge.share(text);
@@ -508,7 +618,7 @@ function bindSettings() {
   document.getElementById("resetBtn").onclick = () => {
     if (!confirm("Сбросить время, серии и достижения? Прогресс внутри игр останется.")) return;
     ["ap:stats", "ap:awards", "ap:recent", "ap:session", "ap:awardsNew"].forEach(store.del);
-    stats = loadStats(); recent = [];
+    stats = loadStats(); recent = []; gotSet = new Set();
     haptic(20);
     renderAll();
     toast("🧹", "Статистика сброшена", "Начинаем с чистого листа");
@@ -557,6 +667,7 @@ let tab = "games";
 function go(name, initial) {
   if (name === tab && !initial) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
   tab = name;
+  if (!stats.tabs.includes(name)) { stats.tabs.push(name); store.set("ap:stats", stats); setTimeout(checkAwards, 400); }
   document.querySelectorAll(".tab").forEach(s => { s.hidden = s.dataset.tab !== name; });
   const btns = [...document.querySelectorAll(".tabbar button")];
   btns.forEach(b => b.classList.toggle("on", b.dataset.go === name));
@@ -631,6 +742,27 @@ function renderAll() {
   document.getElementById("awardsDot").hidden = !store.get("ap:awardsNew", false);
 }
 
+// Секрет: 7 быстрых нажатий на логотип
+let logoTaps = 0, logoTimer;
+document.querySelector(".logo").addEventListener("click", e => {
+  const el = e.currentTarget;
+  logoTaps++;
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => { logoTaps = 0; }, 1500);
+  el.animate([{ transform: "rotate(0) scale(1)" }, { transform: `rotate(${logoTaps % 2 ? 12 : -12}deg) scale(1.12)` }, { transform: "rotate(0) scale(1)" }], { duration: 300 });
+  haptic(6);
+  if (logoTaps >= 7) { logoTaps = 0; burst(el); mark("magic"); }
+});
+
+// Сколько музыки послушали в меню (для «Меломана»)
+setInterval(() => {
+  if (!document.hidden && ambient.playing) {
+    stats.musicMs += 10000;
+    store.set("ap:stats", stats);
+    if (stats.musicMs % 60000 === 0) checkAwards();
+  }
+}, 10000);
+
 function boot() {
   closeSession();
   applySettings();
@@ -646,6 +778,7 @@ function boot() {
   const want = new URLSearchParams(location.search).get("play");
   if (want && byId[want]) {
     history.replaceState(null, "", location.pathname);
+    stats.shortcut = true;
     openSession(byId[want]);
     location.replace(url(byId[want]));
   }

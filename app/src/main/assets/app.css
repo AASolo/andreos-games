@@ -265,7 +265,16 @@ header { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(18p
 .stat b { display: block; font-size: clamp(19px, 5vw, 24px); font-weight: 850; letter-spacing: -.02em; }
 .stat span { color: var(--muted); font-size: 12.5px; }
 
-.awards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.awards-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.award-group { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 4px 10px; font-weight: 800; font-size: 15px; color: var(--text); }
+.award-group:first-child { margin-top: 4px; }
+.award-group em { font-style: normal; color: var(--muted); font-size: 13px; font-weight: 600; }
+.award.secret .medal { filter: none; opacity: .8; background: repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 6px, rgba(255,255,255,.02) 6px 12px); }
+.award.secret b { color: var(--muted); }
+.award.got.tier1 .medal { background: linear-gradient(135deg, rgba(205, 127, 50, .45), rgba(255, 170, 110, .25)); box-shadow: 0 0 0 1px rgba(205, 127, 50, .6), 0 8px 24px -8px rgba(205, 127, 50, .7); }
+.award.got.tier2 .medal { background: linear-gradient(135deg, rgba(200, 210, 230, .45), rgba(140, 160, 200, .25)); box-shadow: 0 0 0 1px rgba(210, 220, 240, .6), 0 8px 24px -8px rgba(190, 210, 255, .7); }
+.award.got.tier3 .medal { background: linear-gradient(135deg, rgba(255, 196, 46, .5), rgba(255, 79, 154, .3)); box-shadow: 0 0 0 1px rgba(255, 196, 46, .7), 0 8px 26px -6px rgba(255, 196, 46, .8); animation: goldPulse 2.4s ease-in-out infinite; }
+@keyframes goldPulse { 50% { box-shadow: 0 0 0 1px rgba(255, 196, 46, .9), 0 8px 34px -4px rgba(255, 196, 46, 1); } }
 .award {
   display: flex; align-items: center; gap: 14px; padding: 14px;
   border-radius: 20px; background: var(--surface); border: 1px solid var(--stroke);
