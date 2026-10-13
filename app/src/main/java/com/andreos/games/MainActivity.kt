@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -12,6 +14,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,6 +27,7 @@ import androidx.webkit.WebViewFeature
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
+    private var menuReady = false
 
     // Игры лежат в assets и открываются по https-адресу этого хоста,
     // поэтому у них работают localStorage, service worker и относительные ссылки.
@@ -35,8 +39,31 @@ class MainActivity : Activity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // Заставка держится, пока не загрузится меню (но не дольше 3 секунд),
+        // а потом иконка улетает вперёд и растворяется.
+        val started = SystemClock.uptimeMillis()
+        splash.setKeepOnScreenCondition { !menuReady && SystemClock.uptimeMillis() - started < 3000 }
+        splash.setOnExitAnimationListener { provider ->
+            provider.iconView.animate()
+                .scaleX(1.6f).scaleY(1.6f).alpha(0f)
+                .setDuration(380)
+                .start()
+            provider.view.animate()
+                .alpha(0f)
+                .setStartDelay(120)
+                .setDuration(380)
+                .withEndAction { provider.remove() }
+                .start()
+        }
+
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         hideSystemBars()
 
         webView = WebView(this).apply {
@@ -111,6 +138,10 @@ class MainActivity : Activity() {
     private inner class GamesWebViewClient : WebViewClientCompat() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             assetLoader.shouldInterceptRequest(request.url)
+
+        override fun onPageFinished(view: WebView, url: String) {
+            menuReady = true
+        }
 
         // Ссылки на сайты, инстаграм и т.п. открываем в обычном браузере.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {

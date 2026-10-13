@@ -30,19 +30,19 @@ jobs:
         run: ./gradlew --no-daemon assembleRelease
 
       - name: Переименовать APK
-        run: cp app/build/outputs/apk/release/app-release.apk AndreosGames.apk
+        run: cp app/build/outputs/apk/release/app-release.apk AndreosPlay.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AndreosGames
-          path: AndreosGames.apk
+          name: AndreosPlay
+          path: AndreosPlay.apk
 
       - name: Обновить релиз «latest»
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest AndreosGames.apk \
-            --title "Игры Andreos (сборка ${{ github.run_number }})" \
-            --notes "Скачай AndreosGames.apk на телефон и установи. Новые версии ставятся поверх старой, прогресс сохраняется." \
+          gh release create latest AndreosPlay.apk \
+            --title "Andreos Play (сборка ${{ github.run_number }})" \
+            --notes "Скачай AndreosPlay.apk на телефон и установи. Новые версии ставятся поверх старой, прогресс сохраняется." \
             --target "${{ github.sha }}"

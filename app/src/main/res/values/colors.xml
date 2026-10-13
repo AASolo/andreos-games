@@ -1,4 +1,5 @@
 <resources>
-    <color name="bg">#14101F</color>
-    <color name="icon_bg">#6C3BFF</color>
+    <color name="bg">#0B0914</color>
+    <color name="brand_1">#8B5CFF</color>
+    <color name="brand_2">#FF4F9A</color>
 </resources>
