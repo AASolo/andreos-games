@@ -11,21 +11,14 @@ import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Shader
-import android.os.Handler
-import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
 import android.webkit.JavascriptInterface
-import android.widget.ImageButton
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
-import androidx.core.view.ViewCompat
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -51,9 +44,6 @@ class MainActivity : Activity() {
 
     private lateinit var webView: WebView
     private var menuReady = false
-    private lateinit var homeButton: ImageButton
-    private val handler = Handler(Looper.getMainLooper())
-    private val dimHome = Runnable { homeButton.animate().alpha(0.35f).setDuration(400).start() }
 
     // Игры лежат в assets и открываются по https-адресу этого хоста,
     // поэтому у них работают localStorage, service worker и относительные ссылки.
@@ -113,11 +103,7 @@ class MainActivity : Activity() {
                 }
             )
         }
-        homeButton = createHomeButton()
-        setContentView(FrameLayout(this).apply {
-            addView(webView)
-            addView(homeButton)
-        })
+        setContentView(FrameLayout(this).apply { addView(webView) })
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(startUrl(intent))
@@ -135,49 +121,6 @@ class MainActivity : Activity() {
     private fun startUrl(intent: Intent?): String {
         val game = intent?.getStringExtra(EXTRA_GAME) ?: return MENU_URL
         return "$MENU_URL?play=" + Uri.encode(game)
-    }
-
-    // Круглая кнопка «Домой» поверх игры: видна в играх и становится полупрозрачной, чтобы не мешать.
-    private fun createHomeButton(): ImageButton {
-        val size = dp(44)
-        return ImageButton(this).apply {
-            setImageResource(R.drawable.ic_home)
-            setBackgroundResource(R.drawable.home_button_bg)
-            contentDescription = "В меню"
-            elevation = dp(6).toFloat()
-            visibility = View.GONE
-            layoutParams = FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.START).apply {
-                leftMargin = dp(12)
-                topMargin = dp(12)
-            }
-            setOnClickListener {
-                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-                webView.loadUrl(MENU_URL)
-            }
-            ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
-                val cut = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-                (v.layoutParams as ViewGroup.MarginLayoutParams).apply {
-                    leftMargin = dp(12) + cut.left
-                    topMargin = dp(12) + cut.top
-                }
-                v.requestLayout()
-                insets
-            }
-        }
-    }
-
-    private fun showHome(inGame: Boolean) {
-        handler.removeCallbacks(dimHome)
-        if (!inGame) {
-            homeButton.visibility = View.GONE
-            return
-        }
-        homeButton.visibility = View.VISIBLE
-        homeButton.alpha = 0f
-        homeButton.scaleX = 0.6f
-        homeButton.scaleY = 0.6f
-        homeButton.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(350).start()
-        handler.postDelayed(dimHome, 2500)
     }
 
     private fun publishShortcuts() {
@@ -334,10 +277,6 @@ class MainActivity : Activity() {
     private inner class GamesWebViewClient : WebViewClientCompat() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             assetLoader.shouldInterceptRequest(request.url)
-
-        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-            showHome(url.contains("/assets/games/"))
-        }
 
         override fun onPageFinished(view: WebView, url: String) {
             menuReady = true

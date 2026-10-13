@@ -116,6 +116,79 @@
   setInterval(tick, 1500);
   addEventListener("pagehide", tick);
 
+  /* ---------- кнопка выхода в меню ---------- */
+
+  // Видна во всех играх. Через 3 секунды становится полупрозрачной, её можно перетащить.
+  function exitButton() {
+    var h = document.createElement("div");
+    h.style.cssText = "position:fixed;z-index:2147483646;left:0;top:0;width:0;height:0";
+    var r = h.attachShadow ? h.attachShadow({ mode: "open" }) : h;
+    var st = document.createElement("style");
+    st.textContent =
+      "button{position:fixed;display:flex;align-items:center;gap:6px;padding:9px 14px 9px 11px;border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,.25);background:rgba(16,12,30,.78);color:#fff;font:700 14px system-ui,-apple-system,Roboto,sans-serif;" +
+      "-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 18px -6px #8b5cff;" +
+      "touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;transition:opacity .4s,transform .2s;" +
+      "animation:in .5s cubic-bezier(.34,1.56,.64,1) both}" +
+      "button.dim{opacity:.45}button:active{transform:scale(.92)}svg{width:18px;height:18px;fill:#fff}" +
+      "@keyframes in{from{opacity:0;transform:translateX(-30px) scale(.8)}}";
+    r.appendChild(st);
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", "Выйти в меню Andreos Play");
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.4 4.6a1.5 1.5 0 0 1 0 2.1L10.1 12l5.3 5.3a1.5 1.5 0 1 1-2.1 2.1l-6.4-6.4a1.5 1.5 0 0 1 0-2.1l6.4-6.4a1.5 1.5 0 0 1 2.1 0z"/></svg>Игры';
+    r.appendChild(b);
+    (document.body || document.documentElement).appendChild(h);
+
+    var POS = "ap:exitpos:" + id;
+    var pos = read(POS) || { x: 12, y: 12 };
+    function place() {
+      var w = b.offsetWidth || 90, hh = b.offsetHeight || 38;
+      pos.x = Math.max(6, Math.min(innerWidth - w - 6, pos.x));
+      pos.y = Math.max(6, Math.min(innerHeight - hh - 6, pos.y));
+      b.style.left = pos.x + "px";
+      b.style.top = "calc(env(safe-area-inset-top) + " + pos.y + "px)";
+    }
+    place();
+    addEventListener("resize", place);
+
+    var dimT;
+    function wake() { b.classList.remove("dim"); clearTimeout(dimT); dimT = setTimeout(function () { b.classList.add("dim"); }, 3000); }
+    wake();
+
+    // Перетаскивание: если палец сдвинулся больше чем на 8px, это не нажатие
+    var drag = null, moved = false;
+    b.addEventListener("pointerdown", function (e) {
+      drag = { sx: e.clientX, sy: e.clientY, x: pos.x, y: pos.y }; moved = false; wake();
+      try { b.setPointerCapture(e.pointerId); } catch (er) {}
+    });
+    b.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 8) return;
+      moved = true;
+      pos.x = drag.x + dx; pos.y = drag.y + dy; place();
+    });
+    b.addEventListener("pointerup", function () {
+      if (!drag) return;
+      drag = null;
+      if (moved) { write(POS, pos); wake(); return; }
+      exit();
+    });
+    b.addEventListener("pointercancel", function () { drag = null; });
+    b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); });
+  }
+
+  function exit() {
+    tick();
+    try { window.AndroidApp && window.AndroidApp.vibrate("12"); } catch (e) {}
+    document.documentElement.style.transition = "opacity .25s";
+    document.documentElement.style.opacity = "0";
+    setTimeout(function () { location.href = "../../index.html"; }, 220);
+  }
+
+  if (document.body) exitButton(); else addEventListener("DOMContentLoaded", exitButton);
+
   /* ---------- уведомление поверх игры ---------- */
 
   var host, root, queue = 0;
