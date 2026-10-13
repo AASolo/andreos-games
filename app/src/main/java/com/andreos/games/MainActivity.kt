@@ -3,7 +3,30 @@ package com.andreos.games
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Shader
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.JavascriptInterface
+import android.widget.ImageButton
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.view.ViewCompat
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -28,6 +51,9 @@ class MainActivity : Activity() {
 
     private lateinit var webView: WebView
     private var menuReady = false
+    private lateinit var homeButton: ImageButton
+    private val handler = Handler(Looper.getMainLooper())
+    private val dimHome = Runnable { homeButton.animate().alpha(0.35f).setDuration(400).start() }
 
     // Игры лежат в assets и открываются по https-адресу этого хоста,
     // поэтому у них работают localStorage, service worker и относительные ссылки.
@@ -67,7 +93,7 @@ class MainActivity : Activity() {
         hideSystemBars()
 
         webView = WebView(this).apply {
-            setBackgroundColor(0xFF14101F.toInt())
+            setBackgroundColor(0xFF0B0914.toInt())
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
@@ -77,6 +103,7 @@ class MainActivity : Activity() {
             settings.allowContentAccess = false
             webViewClient = GamesWebViewClient()
             webChromeClient = WebChromeClient()
+            addJavascriptInterface(AppBridge(), "AndroidApp")
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)) {
             ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(
@@ -86,11 +113,156 @@ class MainActivity : Activity() {
                 }
             )
         }
-        setContentView(FrameLayout(this).apply { addView(webView) })
+        homeButton = createHomeButton()
+        setContentView(FrameLayout(this).apply {
+            addView(webView)
+            addView(homeButton)
+        })
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            webView.loadUrl(MENU_URL)
+            webView.loadUrl(startUrl(intent))
         }
+        Thread { publishShortcuts() }.start()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getStringExtra(EXTRA_GAME) != null) webView.loadUrl(startUrl(intent))
+    }
+
+    // Ярлык с иконки приложения открывает меню с ?play=<игра>,
+    // меню засчитывает запуск в статистику и сразу открывает игру.
+    private fun startUrl(intent: Intent?): String {
+        val game = intent?.getStringExtra(EXTRA_GAME) ?: return MENU_URL
+        return "$MENU_URL?play=" + Uri.encode(game)
+    }
+
+    // Круглая кнопка «Домой» поверх игры: видна в играх и становится полупрозрачной, чтобы не мешать.
+    private fun createHomeButton(): ImageButton {
+        val size = dp(44)
+        return ImageButton(this).apply {
+            setImageResource(R.drawable.ic_home)
+            setBackgroundResource(R.drawable.home_button_bg)
+            contentDescription = "В меню"
+            elevation = dp(6).toFloat()
+            visibility = View.GONE
+            layoutParams = FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.START).apply {
+                leftMargin = dp(12)
+                topMargin = dp(12)
+            }
+            setOnClickListener {
+                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                webView.loadUrl(MENU_URL)
+            }
+            ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
+                val cut = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+                (v.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                    leftMargin = dp(12) + cut.left
+                    topMargin = dp(12) + cut.top
+                }
+                v.requestLayout()
+                insets
+            }
+        }
+    }
+
+    private fun showHome(inGame: Boolean) {
+        handler.removeCallbacks(dimHome)
+        if (!inGame) {
+            homeButton.visibility = View.GONE
+            return
+        }
+        homeButton.visibility = View.VISIBLE
+        homeButton.alpha = 0f
+        homeButton.scaleX = 0.6f
+        homeButton.scaleY = 0.6f
+        homeButton.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(350).start()
+        handler.postDelayed(dimHome, 2500)
+    }
+
+    private fun publishShortcuts() {
+        val shortcuts = GAMES.mapIndexedNotNull { rank, (id, title, iconPath) ->
+            val icon = try {
+                assets.open("games/$id/$iconPath").use { BitmapFactory.decodeStream(it) }?.let { circle(it) }
+            } catch (_: Exception) {
+                null
+            }
+            ShortcutInfoCompat.Builder(this, id)
+                .setShortLabel(title)
+                .setRank(rank)
+                .setIcon(icon?.let { IconCompat.createWithBitmap(it) }
+                    ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher))
+                .setIntent(
+                    Intent(this, MainActivity::class.java)
+                        .setAction(Intent.ACTION_VIEW)
+                        .putExtra(EXTRA_GAME, id)
+                )
+                .build()
+        }
+        try {
+            ShortcutManagerCompat.setDynamicShortcuts(this, shortcuts.take(ShortcutManagerCompat.getMaxShortcutCountPerActivity(this)))
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun circle(src: Bitmap): Bitmap {
+        val size = 192
+        val side = minOf(src.width, src.height)
+        val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
+        val scaled = Bitmap.createScaledBitmap(square, size, size, true)
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = BitmapShader(scaled, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
+        Canvas(out).drawCircle(size / 2f, size / 2f, size / 2f, paint)
+        return out
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    // Мост для меню: вибрация, «поделиться», внешние ссылки и номер версии.
+    private inner class AppBridge {
+        @JavascriptInterface
+        fun vibrate(pattern: String) {
+            val times = pattern.split(",").mapNotNull { it.trim().toLongOrNull() }.filter { it in 0..1000 }
+            if (times.isEmpty()) return
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+            } else {
+                @Suppress("DEPRECATION") getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+            if (!vibrator.hasVibrator()) return
+            val effect = if (times.size == 1) {
+                VibrationEffect.createOneShot(times[0], VibrationEffect.DEFAULT_AMPLITUDE)
+            } else {
+                VibrationEffect.createWaveform((listOf(0L) + times).toLongArray(), -1)
+            }
+            vibrator.vibrate(effect)
+        }
+
+        @JavascriptInterface
+        fun share(text: String) {
+            val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+            runOnUiThread { startActivity(Intent.createChooser(send, "Поделиться Andreos Play")) }
+        }
+
+        @JavascriptInterface
+        fun openUrl(url: String) {
+            val uri = Uri.parse(url)
+            if (uri.scheme != "https" && uri.scheme != "http") return
+            runOnUiThread {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                } catch (_: ActivityNotFoundException) {
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun versionCode(): Int = PackageInfoCompat.getLongVersionCode(packageInfo()).toInt()
+
+        @JavascriptInterface
+        fun versionName(): String = packageInfo().versionName ?: ""
+
+        private fun packageInfo() = packageManager.getPackageInfo(packageName, 0)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -139,8 +311,14 @@ class MainActivity : Activity() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             assetLoader.shouldInterceptRequest(request.url)
 
+        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+            showHome(url.contains("/assets/games/"))
+        }
+
         override fun onPageFinished(view: WebView, url: String) {
             menuReady = true
+            // Из меню «Назад» всегда выходит из приложения, а не листает старые игры.
+            if (url.startsWith(MENU_URL)) view.clearHistory()
         }
 
         // Ссылки на сайты, инстаграм и т.п. открываем в обычном браузере.
@@ -157,6 +335,15 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        const val EXTRA_GAME = "game"
+
+        // id репозитория, название для ярлыка, картинка для иконки ярлыка
+        val GAMES = listOf(
+            Triple("doroga-v-okean", "Дорога в океан", "og.jpg"),
+            Triple("ButerBashnya-1.0", "Бутербашня", "icon-512.png"),
+            Triple("kimchi-gleba", "Кимчи-кафе", "icon-512.png"),
+            Triple("HackQuest-3.0", "HackQuest", "icon-512.png"),
+        )
         const val MENU_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/index.html"
     }
 }
