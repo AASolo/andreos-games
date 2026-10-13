@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Игры Andreos</title>
+<style>
+  :root {
+    --bg: #14101f;
+    --card: #211a33;
+    --text: #f4f0ff;
+    --muted: #b7acd6;
+    --accent: #ffc42e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: system-ui, -apple-system, "Roboto", sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    min-height: 100vh;
+  }
+  header { margin: 8px 4px 20px; }
+  h1 { font-size: 28px; margin: 0 0 4px; font-weight: 800; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent); }
+  header p { margin: 0; color: var(--muted); font-size: 15px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  a.card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--card); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+    transition: transform .12s ease;
+  }
+  a.card:active { transform: scale(.97); }
+  .cover { aspect-ratio: 1200 / 630; width: 100%; display: block; object-fit: cover; background: #000; }
+  .info { padding: 14px 16px 16px; }
+  .info h2 { margin: 0 0 4px; font-size: 19px; }
+  .info p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .tag {
+    display: inline-block; margin-top: 10px; font-size: 12px; padding: 3px 9px;
+    border-radius: 999px; background: rgba(255, 196, 46, .15); color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Игры <span>Andreos</span></h1>
+  <p>Выбери игру. Чтобы вернуться сюда, нажми «Назад».</p>
+</header>
+<main class="grid" id="games"></main>
+<script>
+  const games = [
+    { id: "doroga-v-okean", title: "Дорога в океан", cover: "og.jpg",
+      text: "Вырасти малька за 30 дней заботы и открой ему дорогу в океан." },
+    { id: "ButerBashnya-1.0", title: "Бутербашня", cover: "og-image.png",
+      text: "Построй башню из бургеров до самого космоса." },
+    { id: "kimchi-gleba", title: "Кимчи-кафе Глеба Ли", cover: "og.jpg",
+      text: "Собери кимчи по рецепту и накорми гостей." },
+    { id: "HackQuest-3.0", title: "HackQuest", cover: "og-image.png",
+      text: "Хакерская игра: 30 миссий на Python и секретный проект OBELISK." },
+  ];
+  const root = document.getElementById("games");
+  for (const g of games) {
+    const a = document.createElement("a");
+    a.className = "card";
+    a.href = `games/${g.id}/index.html`;
+    a.innerHTML = `
+      <img class="cover" src="games/${g.id}/${g.cover}" alt="">
+      <div class="info">
+        <h2></h2><p></p>
+        ${g.tag ? `<span class="tag">${g.tag}</span>` : ""}
+      </div>`;
+    a.querySelector("h2").textContent = g.title;
+    a.querySelector("p").textContent = g.text;
+    root.appendChild(a);
+  }
+</script>
+</body>
+</html>

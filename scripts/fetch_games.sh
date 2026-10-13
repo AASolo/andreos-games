@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Скачивает свежие версии игр с GitHub в app/src/main/assets/games
+# и кладёт рядом библиотеки (three.js, Pyodide), чтобы игры работали без интернета.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DEST="$ROOT/app/src/main/assets/games"
+OWNER="AASolo"
+GAMES=(doroga-v-okean ButerBashnya-1.0 kimchi-gleba HackQuest-3.0)
+HOST="https://appassets.androidplatform.net/assets/games"
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+rm -rf "$DEST"
+mkdir -p "$DEST"
+
+for g in "${GAMES[@]}"; do
+  echo "→ $g"
+  git clone -q --depth 1 "https://github.com/$OWNER/$g.git" "$TMP/$g"
+  rm -rf "$TMP/$g/.git"
+  cp -r "$TMP/$g" "$DEST/$g"
+done
+
+( cd "$TMP" && npm pack --silent three@0.160.0 pyodide@0.26.4 >/dev/null )
+
+# Дорога в океан: three.js локально
+mkdir -p "$TMP/three"
+tar xzf "$TMP/three-0.160.0.tgz" -C "$TMP/three"
+cp "$TMP/three/package/build/three.min.js" "$DEST/doroga-v-okean/three.min.js"
+sed -i 's#https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js#three.min.js#g' \
+  "$DEST/doroga-v-okean/index.html"
+
+# HackQuest: Pyodide локально (грузится из воркера, поэтому нужен полный адрес)
+mkdir -p "$TMP/pyodide" "$DEST/HackQuest-3.0/pyodide"
+tar xzf "$TMP/pyodide-0.26.4.tgz" -C "$TMP/pyodide"
+for f in pyodide.js pyodide.asm.js pyodide.asm.wasm python_stdlib.zip pyodide-lock.json; do
+  cp "$TMP/pyodide/package/$f" "$DEST/HackQuest-3.0/pyodide/"
+done
+sed -i "s#https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js#$HOST/HackQuest-3.0/pyodide/pyodide.js#g" \
+  "$DEST/HackQuest-3.0/index.html"
+
+# Проверка: в играх не осталось скриптов с CDN
+if grep -l 'cdn.jsdelivr.net' "$DEST"/*/index.html; then
+  echo "Остались ссылки на CDN, обнови scripts/fetch_games.sh" >&2
+  exit 1
+fi
+du -sh "$DEST"

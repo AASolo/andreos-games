@@ -1,0 +1,7 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+# игры скачиваются скриптом scripts/fetch_games.sh при сборке
+app/src/main/assets/games/

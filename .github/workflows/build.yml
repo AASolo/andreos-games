@@ -1,0 +1,48 @@
+name: Сборка APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Скачать игры
+        run: ./scripts/fetch_games.sh
+
+      - name: Собрать APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Переименовать APK
+        run: cp app/build/outputs/apk/release/app-release.apk AndreosGames.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AndreosGames
+          path: AndreosGames.apk
+
+      - name: Обновить релиз «latest»
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest AndreosGames.apk \
+            --title "Игры Andreos (сборка ${{ github.run_number }})" \
+            --notes "Скачай AndreosGames.apk на телефон и установи. Новые версии ставятся поверх старой, прогресс сохраняется." \
+            --target "${{ github.sha }}"
