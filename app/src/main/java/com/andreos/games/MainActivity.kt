@@ -257,6 +257,20 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun setReminder(enabled: Boolean, lastDay: String, streak: Int) {
+            Reminders.save(applicationContext, enabled, lastDay, streak)
+        }
+
+        @JavascriptInterface
+        fun requestNotifications() {
+            if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                runOnUiThread { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7) }
+            }
+        }
+
+        @JavascriptInterface
         fun versionCode(): Int = PackageInfoCompat.getLongVersionCode(packageInfo()).toInt()
 
         @JavascriptInterface
@@ -290,6 +304,13 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        // Сначала спрашиваем меню: может, нужно просто закрыть ленту уведомлений
+        webView.evaluateJavascript("window.andreosBack ? andreosBack() : false") { result ->
+            if (result != "true") goBack()
+        }
+    }
+
+    private fun goBack() {
         when {
             webView.canGoBack() -> webView.goBack()
             webView.url?.startsWith(MENU_URL) == false -> webView.loadUrl(MENU_URL)

@@ -40,6 +40,13 @@ done
 sed -i "s#https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js#$HOST/HackQuest-3.0/pyodide/pyodide.js#g" \
   "$DEST/HackQuest-3.0/index.html"
 
+# Мост Andreos Play: игры сообщают приложению о рекордах и пройденных уровнях
+for g in "${GAMES[@]}"; do
+  f="$DEST/$g/index.html"
+  grep -q '</head>' "$f" || { echo "Нет </head> в $f" >&2; exit 1; }
+  sed -i 's#</head>#<script src="../../andreos-bridge.js" defer></script></head>#' "$f"
+done
+
 # Проверка: в играх не осталось скриптов с CDN
 if grep -l 'cdn.jsdelivr.net' "$DEST"/*/index.html; then
   echo "Остались ссылки на CDN, обнови scripts/fetch_games.sh" >&2

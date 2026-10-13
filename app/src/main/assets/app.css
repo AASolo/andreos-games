@@ -421,3 +421,53 @@ body.calm .aurora i, body.calm .hero .frame img, body.calm .grad { animation: no
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .card { opacity: 1; transform: none; }
 }
+
+/* ---------- колокольчик и лента уведомлений ---------- */
+.bell {
+  position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--stroke); background: var(--surface);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  animation: rise .7s var(--ease-out) .25s both;
+}
+.bell svg { width: 22px; height: 22px; fill: var(--text); transform-origin: 50% 10%; }
+.bell.ring svg { animation: ring 1.2s ease-in-out 2; }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(16deg); } 30% { transform: rotate(-14deg); } 45% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+.bell .count {
+  position: absolute; top: -3px; right: -3px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 99px;
+  background: var(--brand-2); color: #fff; font: 800 11px/19px system-ui, sans-serif; font-style: normal; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 12px var(--brand-2);
+  animation: popIn .4s var(--ease-spring) both;
+}
+.sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(5, 4, 12, .55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fadeIn .25s both; }
+@keyframes fadeIn { from { opacity: 0; } }
+.sheet {
+  position: fixed; z-index: 41; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 640px;
+  max-height: 78vh; display: flex; flex-direction: column;
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 18px);
+  border-radius: 28px 28px 0 0; background: rgba(22, 18, 38, .97); border: 1px solid var(--stroke); border-bottom: 0;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, .6);
+  animation: sheetIn .45s var(--ease-out) both;
+}
+.sheet.closing { animation: sheetOut .3s ease forwards; }
+@keyframes sheetIn { from { transform: translateY(100%); } }
+@keyframes sheetOut { to { transform: translateY(100%); } }
+.grab { width: 42px; height: 5px; border-radius: 9px; background: rgba(255, 255, 255, .2); margin: 0 auto 12px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 10px; }
+.sheet-head h3 { margin: 0; font-size: 20px; }
+.sheet-head button { border: 0; background: none; color: var(--muted); font-weight: 700; cursor: pointer; padding: 6px; }
+.inbox-list { overflow-y: auto; display: grid; gap: 8px; padding-bottom: 6px; }
+.note {
+  display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--stroke);
+  animation: rise .4s var(--ease-out) both; animation-delay: calc(var(--i) * 35ms);
+}
+.note.unread { border-color: rgba(139, 92, 255, .45); background: rgba(139, 92, 255, .1); }
+.note .ic { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: rgba(255, 255, 255, .06); position: relative; }
+.note .ic img { position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 6px; object-fit: cover; border: 2px solid #161226; }
+.note .tx { flex: 1; min-width: 0; }
+.note b { display: block; font-size: 15px; }
+.note small { color: var(--muted); font-size: 13px; }
+.note time { flex: none; color: var(--muted); font-size: 12px; align-self: flex-start; }
+.inbox-empty { text-align: center; color: var(--muted); padding: 36px 10px; }
+.inbox-empty div { font-size: 44px; margin-bottom: 8px; }
