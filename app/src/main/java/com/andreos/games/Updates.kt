@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
@@ -71,22 +70,21 @@ object Updates {
         if (Build.VERSION.SDK_INT >= 26) {
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Обновления приложения", NotificationManager.IMPORTANCE_HIGH))
         }
-        val download = PendingIntent.getActivity(
-            context, 11, Intent(Intent.ACTION_VIEW, Uri.parse(APK_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val open = PendingIntent.getActivity(
-            context, 12, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        // Нажатие открывает приложение и сразу запускает обновление внутри него
+        val update = PendingIntent.getActivity(
+            context, 11,
+            Intent(context, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_UPDATE, build)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setColor(0xFF8B5CFF.toInt())
             .setContentTitle("🚀 Вышло обновление Andreos Play")
-            .setContentText("Сборка $build уже готова. Нажми, чтобы скачать")
-            .setContentIntent(download)
-            .addAction(0, "Скачать", download)
-            .addAction(0, "Открыть приложение", open)
+            .setContentText("Сборка $build уже готова. Нажми, чтобы обновить")
+            .setContentIntent(update)
+            .addAction(0, "Обновить", update)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()

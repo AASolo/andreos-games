@@ -114,12 +114,14 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.getStringExtra(EXTRA_GAME) != null) webView.loadUrl(startUrl(intent))
+        if (intent.getStringExtra(EXTRA_GAME) != null || intent.getIntExtra(EXTRA_UPDATE, 0) > 0) webView.loadUrl(startUrl(intent))
     }
 
     // Ярлык с иконки приложения открывает меню с ?play=<игра>,
     // меню засчитывает запуск в статистику и сразу открывает игру.
     private fun startUrl(intent: Intent?): String {
+        val update = intent?.getIntExtra(EXTRA_UPDATE, 0) ?: 0
+        if (update > 0) return "$MENU_URL?update=$update"
         val game = intent?.getStringExtra(EXTRA_GAME) ?: return MENU_URL
         return "$MENU_URL?play=" + Uri.encode(game)
     }
@@ -215,6 +217,18 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun downloadUpdate(build: Int) = Updater.download(applicationContext, build)
+
+        @JavascriptInterface
+        fun updateStatus(): String = Updater.status(applicationContext)
+
+        @JavascriptInterface
+        fun installUpdate(): Boolean = Updater.install(this@MainActivity)
+
+        @JavascriptInterface
+        fun cleanupUpdates(): String = Updater.cleanup(applicationContext)
+
+        @JavascriptInterface
         fun versionCode(): Int = PackageInfoCompat.getLongVersionCode(packageInfo()).toInt()
 
         @JavascriptInterface
@@ -243,6 +257,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         webView.onResume()
+        Updater.resumeInstall(this)
         webView.evaluateJavascript("typeof ambient !== 'undefined' && !busy && ambient.start()", null)
     }
 
@@ -300,6 +315,7 @@ class MainActivity : Activity() {
 
     companion object {
         const val EXTRA_GAME = "game"
+        const val EXTRA_UPDATE = "update"
 
         // id репозитория, название для ярлыка, картинка для иконки ярлыка
         val GAMES = listOf(

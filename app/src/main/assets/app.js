@@ -793,7 +793,52 @@ function showUpdate(build) {
   const b = document.getElementById("updateBanner");
   b.hidden = false;
   b.innerHTML = `<span style="font-size:26px">🚀</span><div class="txt"><b>Вышло обновление</b><small>Новая сборка ${build} уже готова</small></div><button type="button">Скачать</button>`;
-  b.querySelector("button").onclick = () => { haptic(); openExternal(APK_URL); };
+  b.querySelector("button").textContent = bridge && bridge.downloadUpdate ? "Обновить" : "Скачать";
+  b.querySelector("button").onclick = () => { haptic(); startUpdate(build); };
+}
+
+// Обновление внутри приложения: скачиваем, показываем прогресс и открываем установщик.
+// Старые сборки обновляются поверх, а установочный файл приложение удалит само.
+let updTimer = null;
+function startUpdate(build) {
+  if (!bridge || !bridge.downloadUpdate) { openExternal(APK_URL); return; }
+  if (updTimer) return;
+  const b = document.getElementById("updateBanner");
+  b.hidden = false;
+  const paint = (title, sub, pct, btn) => {
+    b.innerHTML = `<span style="font-size:26px">🚀</span><div class="txt"><b>${title}</b><small>${sub}</small>` +
+      (pct != null ? `<i class="upd-bar"><i style="width:${pct}%"></i></i>` : "") + `</div>` + (btn ? `<button type="button">${btn}</button>` : "");
+  };
+  try { bridge.downloadUpdate(build || store.get("ap:updBuild", 0)); } catch { openExternal(APK_URL); return; }
+  paint("Скачиваю обновление", "Можно пока поиграть", 0);
+  updTimer = setInterval(() => {
+    let st; try { st = JSON.parse(bridge.updateStatus()); } catch { st = { state: "failed" }; }
+    if (st.state === "running" || st.state === "none") { paint("Скачиваю обновление", `${st.pct}%`, st.pct); return; }
+    clearInterval(updTimer); updTimer = null;
+    if (st.state === "done") {
+      paint("Обновление скачано", "Нажми «Установить» в окне Android", 100, "Установить");
+      const install = () => { haptic(); try { bridge.installUpdate(); } catch {} };
+      b.querySelector("button").onclick = install;
+      install();
+    } else {
+      paint("Не получилось скачать", "Проверь интернет и попробуй ещё раз", null, "Ещё раз");
+      b.querySelector("button").onclick = () => startUpdate(build);
+    }
+  }, 500);
+}
+
+// Первый запуск после обновления: приложение удаляет установочный файл и сообщает об этом
+function afterUpdate() {
+  if (!bridge || !bridge.cleanupUpdates) return;
+  let r; try { r = bridge.cleanupUpdates(); } catch { return; }
+  if (!r) return;
+  const { build, mb } = JSON.parse(r);
+  const text = `Установлена сборка ${build}. Старый установочный файл удалён` + (mb ? `, освобождено ${String(mb).replace(".", ",")} МБ` : "");
+  const inbox = store.get("ap:inbox", []);
+  inbox.unshift({ game: null, icon: "✅", title: "Приложение обновлено", text, t: Date.now(), read: false });
+  store.set("ap:inbox", inbox.slice(0, 100));
+  renderBell(true);
+  setTimeout(() => { toast("✅", "Приложение обновлено", text); confetti(); }, 900);
 }
 
 /* ================= Нижнее меню ================= */
@@ -911,7 +956,14 @@ function boot() {
   armMusic();
   // Разрешение на уведомления спрашиваем один раз, после первой игры
   setTimeout(() => syncReminders(totalPlays() > 0 && !store.get("ap:askedNotif", false) && (store.set("ap:askedNotif", true), true)), 2500);
-  setTimeout(() => checkUpdate(false), 1500);
+  afterUpdate();
+  const updBuild = +new URLSearchParams(location.search).get("update");
+  if (updBuild) {
+    // Открыли из уведомления «Вышло обновление»: сразу начинаем обновление
+    history.replaceState(null, "", location.pathname);
+    store.set("ap:updBuild", updBuild);
+    setTimeout(() => startUpdate(updBuild), 600);
+  } else setTimeout(() => checkUpdate(false), 1500);
 
   // Запуск с ярлыка на иконке приложения: ?play=<id>
   const want = new URLSearchParams(location.search).get("play");
