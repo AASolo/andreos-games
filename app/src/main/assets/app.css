@@ -65,7 +65,10 @@ header { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(18p
   box-shadow: 0 8px 24px rgba(139, 92, 255, .45);
   animation: logoIn .9s var(--ease-spring) both;
 }
-.logo svg { width: 28px; height: 28px; }
+.logo svg { width: 42px; height: 42px; }
+.logo svg path[class] { transform-box: view-box; transform-origin: 54px 90px; transform: rotate(var(--r)); animation: fan .8s var(--ease-spring) .35s both; }
+.logo .c1 { --r: -34deg; } .logo .c2 { --r: -17deg; } .logo .c3 { --r: 17deg; } .logo .c4 { --r: 34deg; }
+@keyframes fan { from { transform: rotate(0deg); } to { transform: rotate(var(--r)); } }
 @keyframes logoIn { from { transform: scale(0) rotate(-30deg); } to { transform: none; } }
 .hello { min-width: 0; flex: 1; }
 .hello small { display: block; color: var(--muted); font-size: 14px; animation: rise .7s var(--ease-out) .1s both; }
