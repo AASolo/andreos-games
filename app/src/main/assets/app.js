@@ -194,23 +194,29 @@ function haptic(p = 10) {
   try { bridge ? bridge.vibrate(Array.isArray(p) ? p.join(",") : String(p)) : navigator.vibrate?.(p); } catch {}
 }
 let actx;
+// Звуки меню: мягкие «деревянные» щелчки (как маримба), не похожие на игровые писки
 function sound(kind = "tap") {
   if (!settings.sounds) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const notes = { tap: [[880, .04]], fav: [[660, .05], [990, .07]], win: [[523, .09], [659, .09], [784, .09], [1047, .18]], tab: [[740, .03]] }[kind];
+    const notes = { tap: [[392, .09]], tab: [[523, .07]], fav: [[523, .1], [784, .14]], win: [[392, .12], [523, .12], [659, .12], [784, .3]] }[kind];
     let t = actx.currentTime;
-    for (const [f, d] of notes) {
-      const o = actx.createOscillator(), g = actx.createGain();
-      o.type = "sine"; o.frequency.value = f;
-      g.gain.setValueAtTime(.0001, t);
-      g.gain.exponentialRampToValueAtTime(.08, t + .01);
-      g.gain.exponentialRampToValueAtTime(.0001, t + d);
-      o.connect(g).connect(actx.destination);
-      o.start(t); o.stop(t + d + .02);
-      t += d * .8;
-    }
+    for (const [f, d] of notes) { mallet(actx, actx.destination, f, t, d, .11); t += d * .75; }
   } catch {}
+}
+// Удар маримбы: основной тон + обертон ×4, быстрое затухание и лёгкий «стук» в начале
+function mallet(ctx, out, f, t, d, vol) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + .004);
+  g.gain.exponentialRampToValueAtTime(.0001, t + d + .25);
+  g.connect(out);
+  [[1, 1], [3.98, .18], [9.9, .05]].forEach(([r, v]) => {
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * r;
+    og.gain.setValueAtTime(v, t); og.gain.exponentialRampToValueAtTime(.0001, t + (r > 1 ? .08 : d + .25));
+    o.connect(og).connect(g); o.start(t); o.stop(t + d + .3);
+  });
 }
 function openExternal(u) {
   try { bridge ? bridge.openUrl(u) : window.open(u, "_blank"); } catch { location.href = u; }
@@ -219,66 +225,87 @@ function openExternal(u) {
 
 /* ================= Фоновая музыка ================= */
 
-// Тихий эмбиент, который генерируется прямо в приложении: мягкие аккорды,
-// медленный фильтр и лёгкие «капли» сверху. Файлов нет, работает офлайн.
+// Спокойный lo-fi, который генерируется прямо в приложении: электропиано с джазовыми
+// аккордами, мягкий бас и тихий треск винила. Специально не похоже на звуки игр.
+// Файлов нет, работает офлайн.
 const ambient = (() => {
-  let ctx, master, timer, step = 0, on = false;
+  let ctx, master, out, crackle, timer, step = 0, on = false;
+  // Dm9 → G13 → Cmaj9 → Am9 (бас отдельно)
   const CHORDS = [
-    [48, 55, 64, 71],  // Cmaj7
-    [45, 52, 60, 67],  // Am7
-    [41, 48, 57, 64],  // Fmaj7
-    [43, 50, 59, 62],  // G6
+    { bass: 38, keys: [53, 57, 60, 64] },
+    { bass: 43, keys: [53, 59, 64, 69] },
+    { bass: 36, keys: [52, 55, 59, 62] },
+    { bass: 45, keys: [55, 60, 64, 71] },
   ];
-  const BAR = 8; // секунд на аккорд
+  const BPM = 70, BEAT = 60 / BPM, BAR = BEAT * 4;
+  // Ритм аккордов в долях такта: немного «раскачанный»
+  const RHYTHMS = [[0, 2.5], [0, 1.5, 3], [0.5, 2.5], [0, 3]];
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 
   function init() {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     ctx = actx;
-    master = ctx.createGain();
-    master.gain.value = 0;
-    // Простая «комната»: задержка с обратной связью и мягким фильтром
+    master = ctx.createGain(); master.gain.value = 0;
+    // Тёплый «ламповый» звук: срезаем верха, как на старой кассете
+    const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = 2600; tone.Q.value = .5;
+    out = ctx.createGain(); out.gain.value = 1;
+    out.connect(tone); tone.connect(master); master.connect(ctx.destination);
+    // Комната
     const delay = ctx.createDelay(1), fb = ctx.createGain(), damp = ctx.createBiquadFilter();
-    delay.delayTime.value = .38; fb.gain.value = .42; damp.type = "lowpass"; damp.frequency.value = 1800;
-    master.connect(ctx.destination);
-    master.connect(delay); delay.connect(damp); damp.connect(fb); fb.connect(delay); damp.connect(ctx.destination);
+    delay.delayTime.value = BEAT * .75; fb.gain.value = .28; damp.type = "lowpass"; damp.frequency.value = 1400;
+    out.connect(delay); delay.connect(damp); damp.connect(fb); fb.connect(delay); damp.connect(tone);
+    // Треск винила: редкие щелчки и тихий шум в бесконечной петле
+    const len = ctx.sampleRate * 4, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * .012 + (Math.random() < .0004 ? (Math.random() * 2 - 1) * .5 : 0);
+    crackle = ctx.createBufferSource(); crackle.buffer = buf; crackle.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3000; bp.Q.value = .6;
+    const cg = ctx.createGain(); cg.gain.value = .35;
+    crackle.connect(bp).connect(cg).connect(master); crackle.start();
   }
 
-  function pad(notes, t) {
-    const f = ctx.createBiquadFilter();
-    f.type = "lowpass"; f.Q.value = .7;
-    f.frequency.setValueAtTime(500, t);
-    f.frequency.linearRampToValueAtTime(1100, t + BAR * .5);
-    f.frequency.linearRampToValueAtTime(600, t + BAR + 2);
-    const g = ctx.createGain();
+  // Электропиано (как Rhodes): частотная модуляция, яркая атака и мягкий хвост
+  function epiano(n, t, vel) {
+    const f = hz(n);
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+    car.type = "sine"; mod.type = "sine";
+    car.frequency.value = f; mod.frequency.value = f * 1.0; car.detune.value = (Math.random() - .5) * 8;
+    mg.gain.setValueAtTime(f * 1.6, t); mg.gain.exponentialRampToValueAtTime(f * .08, t + 1.2);
     g.gain.setValueAtTime(.0001, t);
-    g.gain.linearRampToValueAtTime(.18, t + 2.5);
-    g.gain.linearRampToValueAtTime(.12, t + BAR);
-    g.gain.linearRampToValueAtTime(.0001, t + BAR + 3);
-    f.connect(g).connect(master);
-    for (const n of notes) for (const det of [-6, 6]) {
-      const o = ctx.createOscillator();
-      o.type = "triangle"; o.frequency.value = hz(n); o.detune.value = det;
-      o.connect(f); o.start(t); o.stop(t + BAR + 3.2);
-    }
+    g.gain.exponentialRampToValueAtTime(.06 * vel, t + .008);
+    g.gain.exponentialRampToValueAtTime(.025 * vel, t + .5);
+    g.gain.exponentialRampToValueAtTime(.0001, t + 3.2);
+    mod.connect(mg).connect(car.frequency);
+    car.connect(g).connect(out);
+    car.start(t); mod.start(t); car.stop(t + 3.3); mod.stop(t + 3.3);
   }
 
-  function drop(n, t) {
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = "sine"; o.frequency.value = hz(n);
+  function bass(n, t, dur) {
+    const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    o.type = "triangle"; o.frequency.value = hz(n);
+    f.type = "lowpass"; f.frequency.value = 400;
     g.gain.setValueAtTime(.0001, t);
-    g.gain.exponentialRampToValueAtTime(.05, t + .02);
-    g.gain.exponentialRampToValueAtTime(.0001, t + 2.4);
-    o.connect(g).connect(master); o.start(t); o.stop(t + 2.5);
+    g.gain.exponentialRampToValueAtTime(.16, t + .03);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + dur + .05);
   }
 
   function schedule() {
-    const t = ctx.currentTime + .1;
-    const chord = CHORDS[step % CHORDS.length];
-    pad(chord, t);
-    // Пара случайных нот из аккорда октавой выше
-    const n = 1 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < n; i++) drop(chord[Math.floor(Math.random() * chord.length)] + 24, t + 1 + Math.random() * (BAR - 2));
+    const t0 = ctx.currentTime + .1;
+    const c = CHORDS[step % CHORDS.length];
+    const rhythm = RHYTHMS[Math.floor(Math.random() * RHYTHMS.length)];
+    rhythm.forEach((beat, i) => {
+      const t = t0 + beat * BEAT;
+      // Аккорд «перебором»: ноты чуть-чуть врозь, как живой пианист
+      c.keys.forEach((n, j) => epiano(n, t + j * .018 + Math.random() * .01, i ? .7 : 1));
+    });
+    bass(c.bass, t0, BEAT * 2.6);
+    bass(c.bass + (Math.random() < .5 ? 7 : 12), t0 + BEAT * 3, BEAT * .9);
+    // Иногда короткая мелодия сверху
+    if (Math.random() < .55) {
+      const pick = () => c.keys[Math.floor(Math.random() * c.keys.length)] + 12;
+      const n = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) epiano(pick(), t0 + (1 + i * .5 + Math.random() * .25) * BEAT, .55);
+    }
     step++;
   }
 
@@ -291,7 +318,7 @@ const ambient = (() => {
         ctx.resume();
         on = true;
         master.gain.cancelScheduledValues(ctx.currentTime);
-        master.gain.setTargetAtTime(.55, ctx.currentTime, 1.2);
+        master.gain.setTargetAtTime(.7, ctx.currentTime, 1.2);
         schedule();
         timer = setInterval(schedule, BAR * 1000);
       } catch {}
