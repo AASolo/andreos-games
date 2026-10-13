@@ -60,15 +60,17 @@ button { font: inherit; color: inherit; }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(18px, 3vh, 28px); }
 .logo {
   width: 48px; height: 48px; border-radius: 15px; flex: none;
-  background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+  background: radial-gradient(circle at 50% 35%, #2a1858, #0b0914);
+  border: 1px solid rgba(139, 92, 255, .35);
   display: grid; place-items: center;
-  box-shadow: 0 8px 24px rgba(139, 92, 255, .45);
+  box-shadow: 0 8px 24px rgba(139, 92, 255, .4), inset 0 0 12px rgba(139, 92, 255, .25);
   animation: logoIn .9s var(--ease-spring) both;
 }
-.logo svg { width: 42px; height: 42px; }
-.logo svg path[class] { transform-box: view-box; transform-origin: 54px 90px; transform: rotate(var(--r)); animation: fan .8s var(--ease-spring) .35s both; }
-.logo .c1 { --r: -34deg; } .logo .c2 { --r: -17deg; } .logo .c3 { --r: 17deg; } .logo .c4 { --r: 34deg; }
-@keyframes fan { from { transform: rotate(0deg); } to { transform: rotate(var(--r)); } }
+.logo svg { width: 40px; height: 40px; overflow: visible; }
+.logo .neon { stroke-dasharray: 110; stroke-dashoffset: 110; animation: draw 1s var(--ease-out) .3s forwards; }
+.logo .tri { transform-box: fill-box; transform-origin: center; transform: scale(0); animation: popIn .5s var(--ease-spring) 1s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes popIn { to { transform: scale(1); } }
 @keyframes logoIn { from { transform: scale(0) rotate(-30deg); } to { transform: none; } }
 .hello { min-width: 0; flex: 1; }
 .hello small { display: block; color: var(--muted); font-size: 14px; animation: rise .7s var(--ease-out) .1s both; }

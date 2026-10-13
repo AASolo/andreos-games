@@ -14,14 +14,14 @@
 <div class="app">
   <header>
     <div class="logo" aria-hidden="true">
-      <svg viewBox="16 18 76 76"><g transform="translate(54 54) scale(.95) translate(-54 -54)">
-        <path class="c1" fill="#35d0ba" d="M46,33h16a6,6 0 0 1 6,6v28a6,6 0 0 1 -6,6h-16a6,6 0 0 1 -6,-6v-28a6,6 0 0 1 6,-6z"/>
-        <path class="c2" fill="#ffc42e" d="M46,33h16a6,6 0 0 1 6,6v28a6,6 0 0 1 -6,6h-16a6,6 0 0 1 -6,-6v-28a6,6 0 0 1 6,-6z"/>
-        <path class="c3" fill="#ff7a2f" d="M46,33h16a6,6 0 0 1 6,6v28a6,6 0 0 1 -6,6h-16a6,6 0 0 1 -6,-6v-28a6,6 0 0 1 6,-6z"/>
-        <path class="c4" fill="#2bff7a" d="M46,33h16a6,6 0 0 1 6,6v28a6,6 0 0 1 -6,6h-16a6,6 0 0 1 -6,-6v-28a6,6 0 0 1 6,-6z"/>
-        <path fill="#fff" d="M46,31h16a6,6 0 0 1 6,6v28a6,6 0 0 1 -6,6h-16a6,6 0 0 1 -6,-6v-28a6,6 0 0 1 6,-6z"/>
-        <path fill="#8b5cff" stroke="#8b5cff" stroke-width="2.5" stroke-linejoin="round" d="M50,42L50,58L63,50Z"/>
-      </g></svg>
+      <svg viewBox="22 22 64 64">
+        <defs>
+          <linearGradient id="logoNeon" x1="33" y1="30" x2="75" y2="76" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#35d0ff"/><stop offset=".5" stop-color="#8b5cff"/><stop offset="1" stop-color="#ff4f9a"/></linearGradient>
+          <filter id="logoGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path class="neon" d="M33 76 L54 30 L75 76" fill="none" stroke="url(#logoNeon)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#logoGlow)"/>
+        <path class="tri" d="M48 54 L48 70 L62 62 Z" fill="#fff" filter="url(#logoGlow)"/>
+      </svg>
     </div>
     <div class="hello">
       <small id="greet">Привет!</small>
