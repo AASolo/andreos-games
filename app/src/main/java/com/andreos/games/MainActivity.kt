@@ -323,6 +323,7 @@ class MainActivity : Activity() {
             Triple("ButerBashnya-1.0", "Бутербашня", "icon-512.png"),
             Triple("kimchi-gleba", "Кимчи-кафе", "icon-512.png"),
             Triple("HackQuest-3.0", "HackQuest", "icon-512.png"),
+            Triple("BlockFlip", "Блок Флип", "icon-512.png"),
         )
         const val MENU_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/index.html"
     }

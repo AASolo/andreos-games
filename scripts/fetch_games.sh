@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/app/src/main/assets/games"
 OWNER="AASolo"
 GAMES=(doroga-v-okean ButerBashnya-1.0 kimchi-gleba HackQuest-3.0)
+# Игры, которые лежат прямо в этом репозитории (папка games-local)
+LOCAL=(BlockFlip)
 HOST="https://appassets.androidplatform.net/assets/games"
 
 TMP="$(mktemp -d)"
@@ -20,6 +22,11 @@ for g in "${GAMES[@]}"; do
   git clone -q --depth 1 "https://github.com/$OWNER/$g.git" "$TMP/$g"
   rm -rf "$TMP/$g/.git"
   cp -r "$TMP/$g" "$DEST/$g"
+done
+
+for g in "${LOCAL[@]}"; do
+  echo "→ $g (из games-local)"
+  cp -r "$ROOT/games-local/$g" "$DEST/$g"
 done
 
 ( cd "$TMP" && npm pack --silent three@0.160.0 pyodide@0.26.4 >/dev/null )
@@ -41,7 +48,7 @@ sed -i "s#https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js#$HOST/HackQue
   "$DEST/HackQuest-3.0/index.html"
 
 # Мост Andreos Play: игры сообщают приложению о рекордах и пройденных уровнях
-for g in "${GAMES[@]}"; do
+for g in "${GAMES[@]}" "${LOCAL[@]}"; do
   f="$DEST/$g/index.html"
   grep -q '</head>' "$f" || { echo "Нет </head> в $f" >&2; exit 1; }
   sed -i 's#</head>#<script src="../../andreos-bridge.js" defer></script></head>#' "$f"
