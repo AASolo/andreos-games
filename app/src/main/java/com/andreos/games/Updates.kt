@@ -10,13 +10,20 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.pm.PackageInfoCompat
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 // Проверка обновлений в фоне: раз в несколько часов смотрим последний релиз на GitHub
 // и, если вышла новая сборка, присылаем уведомление на телефон (одно на каждую сборку).
@@ -26,16 +33,23 @@ object Updates {
     private const val API = "https://api.github.com/repos/AASolo/andreos-games/releases/latest"
     const val APK_URL = "https://github.com/AASolo/andreos-games/releases/latest/download/AndreosPlay.apk"
 
+    // Раньше проверка шла через будильник AlarmManager без пробуждения, и на Huawei/Honor/Xiaomi
+    // система его просто глушила. Теперь — WorkManager: раз в 4 часа, только когда есть интернет,
+    // переживает перезагрузку и экономию батареи.
     fun schedule(context: Context) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pending = PendingIntent.getBroadcast(
-            context, 10, Intent(context, UpdateReceiver::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        alarm.cancel(
+            PendingIntent.getBroadcast(
+                context, 10, Intent(context, UpdateReceiver::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         )
-        alarm.setInexactRepeating(
-            AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_HOUR,
-            AlarmManager.INTERVAL_HALF_DAY / 2, pending
-        )
+        val request = PeriodicWorkRequestBuilder<UpdateWorker>(4, TimeUnit.HOURS, 1, TimeUnit.HOURS)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setInitialDelay(30, TimeUnit.MINUTES)
+            .build()
+        WorkManager.getInstance(context)
+            .enqueueUniquePeriodicWork("update-check", ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
     // Номер последней сборки на GitHub или 0, если узнать не получилось
@@ -97,6 +111,14 @@ object Updates {
     }
 }
 
+class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
+    override fun doWork(): Result {
+        Updates.check(applicationContext)
+        return Result.success()
+    }
+}
+
+// Оставлен для старых будильников, поставленных прошлыми версиями
 class UpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val result = goAsync()

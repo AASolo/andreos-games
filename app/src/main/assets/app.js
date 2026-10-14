@@ -744,6 +744,18 @@ function bindSettings() {
     } catch {}
   };
   document.getElementById("updateBtn").onclick = () => { haptic(); checkUpdate(true); };
+  // Huawei/Honor/Xiaomi: кнопка, чтобы разрешить фоновый запуск для уведомлений об обновлениях
+  try {
+    const bg = document.getElementById("bgBtn");
+    if (bridge && bridge.needsBackgroundSetup && bridge.needsBackgroundSetup()) {
+      bg.hidden = false;
+      bg.onclick = () => {
+        haptic();
+        toast("⚡", "Найди Andreos Play", "Выключи «Автоматически» и включи все переключатели");
+        setTimeout(() => bridge.openBackgroundSettings(), 900);
+      };
+    }
+  } catch {}
   document.getElementById("resetBtn").onclick = () => {
     if (!confirm("Сбросить время, серии и достижения? Прогресс внутри игр останется.")) return;
     ["ap:stats", "ap:awards", "ap:recent", "ap:session", "ap:awardsNew"].forEach(store.del);

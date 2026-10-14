@@ -426,13 +426,14 @@ body.calm .aurora i, body.calm .hero .frame img, body.calm .grad { animation: no
 
 /* ---------- колокольчик и лента уведомлений ---------- */
 .bell {
-  position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%;
-  display: grid; place-items: center; cursor: pointer;
+  position: relative; flex: 0 0 42px; width: 42px; height: 42px; min-width: 42px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none; color: var(--text); line-height: 0;
   border: 1px solid var(--stroke); background: var(--surface);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   animation: rise .7s var(--ease-out) .25s both;
 }
-.bell svg { width: 22px; height: 22px; fill: var(--text); transform-origin: 50% 10%; }
+.bell svg { display: block; flex: none; width: 22px; height: 22px; margin: 0; fill: currentColor; transform: rotate(0deg); transform-origin: 11px 2px; }
 .bell.ring svg { animation: ring 1.2s ease-in-out 2; }
 @keyframes ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(16deg); } 30% { transform: rotate(-14deg); } 45% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
 .bell .count {

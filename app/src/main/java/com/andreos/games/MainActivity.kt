@@ -228,6 +228,33 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun cleanupUpdates(): String = Updater.cleanup(applicationContext)
 
+        // Huawei, Honor, Xiaomi и др. усыпляют фоновые задачи: без разрешения
+        // на автозапуск уведомления об обновлениях могут не приходить
+        @JavascriptInterface
+        fun needsBackgroundSetup(): Boolean =
+            Build.MANUFACTURER.lowercase() in setOf("huawei", "honor", "xiaomi", "redmi", "poco", "oppo", "realme", "vivo", "meizu")
+
+        @JavascriptInterface
+        fun openBackgroundSettings() {
+            val candidates = listOf(
+                "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
+                "com.hihonor.systemmanager" to "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+                "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+            ).map { (pkg, cls) -> Intent().setComponent(android.content.ComponentName(pkg, cls)) } +
+                Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            runOnUiThread {
+                for (i in candidates) {
+                    try {
+                        startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return@runOnUiThread
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
+
         @JavascriptInterface
         fun versionCode(): Int = PackageInfoCompat.getLongVersionCode(packageInfo()).toInt()
 

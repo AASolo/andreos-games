@@ -28,7 +28,7 @@
       <h1><span class="grad">Andreos</span> Play</h1>
     </div>
     <button class="bell" id="bellBtn" type="button" aria-label="Уведомления">
-      <svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-1.7 1.7A1 1 0 0 0 4 19.4h16a1 1 0 0 0 .7-1.7L19 16z"/></svg>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-1.7 1.7A1 1 0 0 0 4 19.4h16a1 1 0 0 0 .7-1.7L19 16z"/></svg>
       <i class="count" id="bellCount" hidden></i>
     </button>
     <button class="streak" id="streakChip" type="button" aria-label="Серия дней"></button>
@@ -78,6 +78,7 @@
       <label class="row"><span class="ico">🔊</span><span class="lbl">Звуки меню<small>Тихие щелчки в меню</small></span><input type="checkbox" class="switch" data-setting="sounds"></label>
       <label class="row"><span class="ico">🎵</span><span class="lbl">Фоновая музыка<small>Спокойный lo-fi в меню</small></span><input type="checkbox" class="switch" data-setting="music"></label>
       <label class="row"><span class="ico">🔔</span><span class="lbl">Напоминания<small>Не дадим сгореть серии дней</small></span><input type="checkbox" class="switch" data-setting="reminders"></label>
+      <button class="row" type="button" id="bgBtn" hidden><span class="ico">⚡</span><span class="lbl">Не пропускать обновления<small>Разреши фоновый запуск — и новые игры придут сами</small></span><span class="chev">›</span></button>
       <label class="row"><span class="ico">✨</span><span class="lbl">Анимации<small>Живой фон и эффекты</small></span><input type="checkbox" class="switch" data-setting="motion"></label>
     </div>
     <div class="list">
