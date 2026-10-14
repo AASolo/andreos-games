@@ -473,3 +473,12 @@ body.calm .aurora i, body.calm .hero .frame img, body.calm .grad { animation: no
 .note time { flex: none; color: var(--muted); font-size: 12px; align-self: flex-start; }
 .inbox-empty { text-align: center; color: var(--muted); padding: 36px 10px; }
 .inbox-empty div { font-size: 44px; margin-bottom: 8px; }
+
+/* Поддержка проекта */
+.support { display: flex; align-items: center; gap: 14px; width: 100%; margin: 22px 0 8px; padding: 16px 18px; border-radius: 20px; border: 1px solid var(--stroke); background: linear-gradient(135deg, rgba(64, 140, 255, .14), rgba(255, 255, 255, .03)); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.support:active { transform: scale(.98); }
+.support-ico { font-size: 26px; flex: none; animation: pulse 2.4s ease-in-out infinite; }
+.support-txt { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.support-txt b { font-size: 15px; }
+.support-txt small { color: var(--muted); font-size: 12.5px; }
+.support .chev { color: var(--muted); font-size: 24px; line-height: 1; }
