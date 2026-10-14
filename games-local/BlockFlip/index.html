@@ -580,7 +580,7 @@ function place(i,r0,c0){
     if(S.grid.every(row=>row.every(v=>!v))){gained+=1500;floats.push({text:'ЧИСТОЕ ПОЛЕ +1500',x:BW/2,y:oy+B*.25,t0:now+DROP+300,color:'#6fe3c8',size:cell*.55});S.energy=6}
   }else{S.msc++;if(S.msc>=3)S.combo=0}
   S.score+=gained;
-  if(S.mode==='classic'&&S.score>best){best=S.score;store.set('best',best)}
+  if(S.mode==='classic'&&S.score>best){if(!S.recShown&&(S.startBest??best)>0){S.recShown=true;floats.push({text:'НОВЫЙ РЕКОРД!',x:BW/2,y:oy+B*.15,t0:performance.now()+DROP+400,color:'#6fe3c8',size:cell*.6})}best=S.score;store.set('best',best)}
   if(S.goals&&Object.values(S.goals).every(v=>v<=0)){win();syncUI();return}
   if(S.tray.every(t=>!t))dealTray();
   checkOver();
@@ -608,6 +608,10 @@ function win(){
     showEnd('Уровень '+S.level+' пройден!','Все кристаллы собраны.',S.score,'Дальше: уровень '+(S.level+1),'Следующий')}
   else{store.set('daily',today);showEnd('Пазл дня решён!','Возвращайся завтра за новым.',S.score,'','Классика')}
 }
+function finishRecord(){
+  // called once when a classic game ends; the app turns this key into a single "new record" notification
+  if(S&&S.mode==='classic'&&!S.recSent&&S.score>(S.startBest||0)&&S.score>=1000){S.recSent=true;store.set('record',S.score)}
+}
 function checkOver(){
   const can=S.tray.some(p=>p&&fitsAnyOrient(p.cells));
   if(!can&&S.energy<3){
@@ -615,6 +619,7 @@ function checkOver(){
     sfx(200,.4,'sine');
     if(S.mode==='classic'){
       if(S.score>best){best=S.score;store.set('best',best)}
+      finishRecord();
       showEnd('Ходов нет','Ни одна фигура не помещается даже с поворотом.',S.score,'Рекорд: '+best,'Ещё раз');
     }else{
       const left=Object.values(S.goals).reduce((a,b)=>a+Math.max(0,b),0);
@@ -688,7 +693,8 @@ function openMenu(){
 function startMode(mode,level){
   unlockAudio();
   $('menuOv').hidden=true;$('endOv').hidden=true;
-  S=freshState(mode,level);shownScore=0;scoreEl.textContent='0';fx=[];floats=[];drops={};beams=[];shards=[];rings=[];flash=null;
+  if(S&&!S.over)finishRecord();
+  S=freshState(mode,level);S.startBest=best;shownScore=0;scoreEl.textContent='0';fx=[];floats=[];drops={};beams=[];shards=[];rings=[];flash=null;
   dealTray();syncUI();resize();
 }
 
@@ -866,8 +872,8 @@ window.claude?.hot?.snapshot?.(()=>({S:JSON.parse(JSON.stringify({...S,tray:S.tr
 function start(data){
   makeWood();
   let restored=false;
-  if(data&&data.S&&data.S.grid&&data.S.mode){S=data.S;S.tray.forEach(p=>{if(p)p.anim=null});shownScore=S.score;restored=true}
-  else{S=freshState('classic');dealTray()}
+  if(data&&data.S&&data.S.grid&&data.S.mode){S=data.S;S.tray.forEach(p=>{if(p)p.anim=null});shownScore=S.score;restored=true;if(S.startBest==null)S.startBest=best}
+  else{S=freshState('classic');S.startBest=best;dealTray()}
   syncUI();resize();
   addEventListener('resize',resize);
   if(!restored||S.over)openMenu();
