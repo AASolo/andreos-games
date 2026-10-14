@@ -69,11 +69,13 @@
           best: +read("blockflip-best") || 0,
           level: +read("blockflip-level") || 1,
           daily: +read("blockflip-daily") || 0,
+          rec: +read("blockflip-record") || 0,
         };
       },
       events: function (a, b) {
         var out = [];
-        if (b.best > a.best && b.best >= 1000) out.push(["🧱", "Новый рекорд!", b.best + " очков в классике"]);
+        // рекорд объявляем один раз за партию: игра пишет blockflip-record, когда партия закончилась
+        if (b.rec && b.rec !== a.rec) out.push(["🧱", "Новый рекорд!", b.rec + " очков в классике"]);
         if (b.level > a.level) out.push(["💎", "Уровень " + (b.level - 1) + " пройден", "Все кристаллы собраны"]);
         if (b.daily > a.daily) out.push(["☀️", "Пазл дня решён", "Новый будет завтра"]);
         return out;
