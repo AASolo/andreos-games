@@ -47,6 +47,11 @@ done
 sed -i "s#https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js#$HOST/HackQuest-3.0/pyodide/pyodide.js#g" \
   "$DEST/HackQuest-3.0/index.html"
 
+# Шрифты Google Fonts: локальные копии, чтобы игры выглядели так же без интернета
+for g in "${GAMES[@]}" "${LOCAL[@]}"; do
+  python3 "$ROOT/scripts/localize_fonts.py" "$DEST/$g"
+done
+
 # Мост Andreos Play: игры сообщают приложению о рекордах и пройденных уровнях
 for g in "${GAMES[@]}" "${LOCAL[@]}"; do
   f="$DEST/$g/index.html"
@@ -54,9 +59,9 @@ for g in "${GAMES[@]}" "${LOCAL[@]}"; do
   sed -i 's#</head>#<script src="../../andreos-bridge.js" defer></script></head>#' "$f"
 done
 
-# Проверка: в играх не осталось скриптов с CDN
-if grep -l 'cdn.jsdelivr.net' "$DEST"/*/index.html; then
-  echo "Остались ссылки на CDN, обнови scripts/fetch_games.sh" >&2
+# Проверка: игры ничего не грузят из интернета (CDN, шрифты)
+if grep -lE 'cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.|fonts\.googleapis\.com|fonts\.gstatic\.com' "$DEST"/*/index.html; then
+  echo "Остались ссылки на интернет, обнови scripts/fetch_games.sh" >&2
   exit 1
 fi
 du -sh "$DEST"
