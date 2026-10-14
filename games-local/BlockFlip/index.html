@@ -377,7 +377,7 @@ function drawGem(x,y,R,t,now){
 function mix(a,b,k){const A=hexRgb(a),Bc=hexRgb(b);return'#'+A.map((v,i)=>Math.round(v+(Bc[i]-v)*k).toString(16).padStart(2,'0')).join('')}
 function drawTile(x,y,s,color,t,now,sk){
   sk=sk||skin;
-  const g=Math.max(1,s*.05),r=s*.18,wood=color===WOOD;
+  const g=Math.max(.5,s*.012),r=s*.11,wood=color===WOOD;
   let ink='#1a120c';
   if(wood||sk==='gloss'||sk==='wood'){
     const base=sk==='wood'&&!wood?mix(color,'#b5834f',.28):color;
@@ -390,17 +390,17 @@ function drawTile(x,y,s,color,t,now,sk){
   }else if(sk==='neon'){
     ctx.fillStyle='#0d0f22';rr(x+g,y+g,s-2*g,s-2*g,r);ctx.fill();
     ctx.fillStyle=color+'33';rr(x+g*2,y+g*2,s-4*g,s-4*g,r*.8);ctx.fill();
-    ctx.strokeStyle=color+'55';ctx.lineWidth=Math.max(3,s*.14);rr(x+s*.14,y+s*.14,s*.72,s*.72,r*.7);ctx.stroke();
+    ctx.strokeStyle=color+'55';ctx.lineWidth=Math.max(3,s*.14);rr(x+s*.1,y+s*.1,s*.8,s*.8,r*.7);ctx.stroke();
     ctx.strokeStyle=shade(color,.45);ctx.lineWidth=Math.max(1.5,s*.05);ctx.stroke();
     ink=color;
   }else if(sk==='pixel'){
-    const e=Math.max(2,Math.round(s*.12)),q=Math.max(1,Math.round(s*.03));
+    const e=Math.max(2,Math.round(s*.12)),q=Math.round(s*.01);
     ctx.fillStyle=shade(color,-.45);ctx.fillRect(x+q,y+q,s-2*q,s-2*q);
     ctx.fillStyle=color;ctx.fillRect(x+q,y+q,s-2*q-e,s-2*q-e);
     ctx.fillStyle=shade(color,.45);ctx.fillRect(x+q,y+q,s-2*q-e,e);ctx.fillRect(x+q,y+q,e,s-2*q-e);
     ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillRect(x+q+e,y+q+e,e,e);
   }else{ // candy
-    const cx0=x+s/2,cy0=y+s/2,R=s*.44;
+    const cx0=x+s/2,cy0=y+s/2,R=s*.485;
     ctx.fillStyle=shade(color,-.4);ctx.beginPath();ctx.arc(cx0,cy0+s*.04,R,0,7);ctx.fill();
     const rg=ctx.createRadialGradient(cx0-R*.35,cy0-R*.4,R*.1,cx0,cy0,R);
     rg.addColorStop(0,shade(color,.6));rg.addColorStop(.55,color);rg.addColorStop(1,shade(color,-.2));
@@ -730,8 +730,8 @@ function frame(now){
   if(preview&&preview.ok&&preview.lines){hlColor=S.tray[drag?drag.i:0]?.color;preview.lines.rows.forEach(r=>{for(let c=0;c<N;c++)hl.add(r+','+c)});preview.lines.cols.forEach(c=>{for(let r=0;r<N;r++)hl.add(r+','+c)})}
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){
     const x=ox+c*cell,y=oy+r*cell,v=S.grid[r][c];
-    if(!v){ctx.fillStyle=th.cells[(r+c)%2];rr(x+1.5,y+1.5,cell-3,cell-3,cell*.12);ctx.fill();
-      ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(x+cell*.15,y+1.5,cell*.7,2);continue}
+    if(!v){ctx.fillStyle=th.cells[(r+c)%2];rr(x+.75,y+.75,cell-1.5,cell-1.5,cell*.08);ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(x+cell*.15,y+.75,cell*.7,2);continue}
     const k=r+','+c;
     drawCell(x,y,hl.has(k)&&hlColor?hlColor:v.color,v.t,k,now);
   }
@@ -739,7 +739,7 @@ function frame(now){
   if(preview&&drag){
     const p=S.tray[drag.i];
     if(preview.ok){
-      hl.forEach(k=>{const[r,c]=k.split(',').map(Number);if(!S.grid[r][c]){ctx.fillStyle=hlColor+'66';rr(ox+c*cell+1.5,oy+r*cell+1.5,cell-3,cell-3,cell*.12);ctx.fill()}});
+      hl.forEach(k=>{const[r,c]=k.split(',').map(Number);if(!S.grid[r][c]){ctx.fillStyle=hlColor+'66';rr(ox+c*cell+.75,oy+r*cell+.75,cell-1.5,cell-1.5,cell*.08);ctx.fill()}});
       ctx.globalAlpha=.45;p.cells.forEach(c=>drawTile(ox+(preview.c+c.c)*cell,oy+(preview.r+c.r)*cell,cell,p.color,c.t,now));ctx.globalAlpha=1;
     }
   }
