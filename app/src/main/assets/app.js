@@ -15,6 +15,8 @@ const games = [
     text: "Собери кимчи по рецепту и накорми гостей.", tag: "Кулинария" },
   { id: "HackQuest-3.0", title: "HackQuest", cover: "og-image.png", accent: "#2bff7a",
     text: "Хакерская игра: 30 миссий на Python и секретный проект OBELISK.", tag: "Обучение" },
+  { id: "BlockFlip", title: "Блок Флип", cover: "cover.png", accent: "#ffc24a",
+    text: "Деревянные блоки на поле 8×8: верти фигуры, собирай кристаллы и взрывай бомбы.", tag: "Головоломки" },
 ];
 const byId = Object.fromEntries(games.map(g => [g.id, g]));
 const url = g => `games/${g.id}/index.html`;
@@ -109,6 +111,8 @@ const awards = [
   { g: "ingame", id: "cafe300", icon: "💰", title: "Касса полна", text: "Заработай 300 монет в «Кимчи-кафе»", goal: 300, tier: 1, val: () => gp().kimchiCoins || 0 },
   { g: "ingame", id: "hack10", icon: "🔓", title: "Взломщик", text: "Пройди 10 миссий в HackQuest", goal: 10, tier: 2, val: () => gp().hackDone || 0 },
   { g: "ingame", id: "obelisk", icon: "🗿", title: "OBELISK", text: "Пройди все 30 миссий в HackQuest", goal: 30, tier: 3, val: () => gp().hackDone || 0 },
+  { g: "ingame", id: "block5k", icon: "🧱", title: "Мастер блоков", text: "Набери 5000 очков в классике «Блок Флипа»", goal: 5000, tier: 2, val: () => gp().blockBest || 0 },
+  { g: "ingame", id: "gems10", icon: "💎", title: "Охотник за кристаллами", text: "Пройди 10 уровней приключения в «Блок Флипе»", goal: 10, tier: 3, val: () => gp().blockLevel || 0 },
 
   { g: "games", id: "fish5", icon: "🐠", title: "Друг рыбки", text: "Запусти «Дорогу в океан» 5 раз", goal: 5, tier: 1, val: () => playsOf("doroga-v-okean") },
   { g: "games", id: "fish30", icon: "🌊", title: "Океанолог", text: "Проведи в «Дороге в океан» 30 минут", goal: 30, tier: 2, val: () => minsOf("doroga-v-okean") },
@@ -118,6 +122,8 @@ const awards = [
   { g: "games", id: "kimchi30", icon: "🌶️", title: "Шеф кимчи", text: "Проведи в «Кимчи-кафе» 30 минут", goal: 30, tier: 2, val: () => minsOf("kimchi-gleba") },
   { g: "games", id: "hack5", icon: "💻", title: "Скрипт-кидди", text: "Запусти HackQuest 5 раз", goal: 5, tier: 1, val: () => playsOf("HackQuest-3.0") },
   { g: "games", id: "hack30", icon: "🕶️", title: "Настоящий хакер", text: "Проведи в HackQuest 30 минут", goal: 30, tier: 2, val: () => minsOf("HackQuest-3.0") },
+  { g: "games", id: "block5", icon: "🟫", title: "Плотник", text: "Запусти «Блок Флип» 5 раз", goal: 5, tier: 1, val: () => playsOf("BlockFlip") },
+  { g: "games", id: "block30", icon: "🪵", title: "Столяр", text: "Проведи в «Блок Флипе» 30 минут", goal: 30, tier: 2, val: () => minsOf("BlockFlip") },
   { g: "games", id: "fan", icon: "💜", title: "Фанат", text: "Запусти одну игру 10 раз", goal: 10, tier: 2, val: () => Math.max(0, ...Object.values(stats.plays)) },
   { g: "games", id: "allround", icon: "🎲", title: "Универсал", text: "Проведи по 10 минут в каждой игре", goal: games.length, tier: 3, val: () => games.filter(g => minsOf(g.id) >= 10).length },
 

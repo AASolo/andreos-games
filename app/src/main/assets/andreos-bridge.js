@@ -63,6 +63,22 @@
         return out;
       },
     },
+    "BlockFlip": {
+      snap: function () {
+        return {
+          best: +read("blockflip-best") || 0,
+          level: +read("blockflip-level") || 1,
+          daily: +read("blockflip-daily") || 0,
+        };
+      },
+      events: function (a, b) {
+        var out = [];
+        if (b.best > a.best && b.best >= 1000) out.push(["🧱", "Новый рекорд!", b.best + " очков в классике"]);
+        if (b.level > a.level) out.push(["💎", "Уровень " + (b.level - 1) + " пройден", "Все кристаллы собраны"]);
+        if (b.daily > a.daily) out.push(["☀️", "Пазл дня решён", "Новый будет завтра"]);
+        return out;
+      },
+    },
     "HackQuest-3.0": {
       snap: function () {
         var d = []; try { d = JSON.parse(localStorage.getItem("hq_done_v4") || "[]"); } catch (e) {}
@@ -90,6 +106,7 @@
       "ButerBashnya-1.0": { buterBest: s.best, buterCoins: s.coins, buterThemes: s.owned },
       "kimchi-gleba": { kimchiLevel: s.level, kimchiCoins: s.total },
       "HackQuest-3.0": { hackDone: s.done },
+      "BlockFlip": { blockBest: s.best, blockLevel: s.level - 1 },
     }[id];
     var changed = false;
     for (var k in m) if ((m[k] || 0) > (gp[k] || 0)) { gp[k] = m[k]; changed = true; }
